@@ -1,0 +1,8 @@
+{
+  "name": "Celestial Vision AI",
+  "description": "Autonomous celestial identification platform using Gemini 3 Pro Expert Astronomer and Astroquery methodologies.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
