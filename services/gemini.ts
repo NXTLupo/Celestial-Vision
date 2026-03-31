@@ -486,6 +486,7 @@ export const analyzeCelestialImageStream = async (
       - Override or contradict the identifications provided from the data pipeline
       - Add objects that are not in the provided data
       - Claim "no streaks detected" if a streak identification is provided to you
+      - INVENT or GUESS any numeric values (distances, magnitudes, dates, counts). If a number is in the data, QUOTE IT EXACTLY. If a number is NOT in the data, DO NOT make one up. Say "unknown" instead.
 
       TARGET: ${activeTargetName}
 
@@ -1049,6 +1050,7 @@ FAILURE PREVENTION:
 - NEVER use corporate/institutional voice — this is Jonathan's personal post
 - ZERO en dashes (–) or em dashes (—) anywhere in the output. Use hyphens (-) or rewrite.
 - ZERO AI-tell words: delve, tapestry, testament, journey, remarkable, utilize, leverage, Furthermore, Moreover, Additionally, nestled, awe-inspiring, celestial dance, breathtaking, stunning, magnificent
+- NEVER invent numeric values. If the data says 1.97 AU, write "about 2 AU" — do NOT make up "15 AU" or any other number not in the data. When in doubt, omit the number entirely.
 - Read your output back. If it sounds like ChatGPT wrote it, rewrite it to sound like a person.
 `;
 
