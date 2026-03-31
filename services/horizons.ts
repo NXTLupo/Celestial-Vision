@@ -94,21 +94,98 @@ export const fetchHorizonsEphemeris = async (
     if (lines.length === 0) return null;
 
     const row = lines[0].split(',');
-    
-    // Check if we got valid data or if it failed silently
-    if (!row[1] || !row[2]) return null;
+
+    if (onLog) onLog(`[HORIZONS] Raw CSV row (${row.length} columns): ${lines[0].substring(0, 200)}`);
+
+    // Horizons CSV column layout depends on QUANTITIES requested.
+    // QUANTITIES='1,9,20' produces:
+    //   Col 0: Date (JDUT or Calendar)
+    //   Col 1: (blank or space)
+    //   Col 2: RA (sexagesimal HH MM SS.ff)
+    //   Col 3: Dec (sexagesimal sDD MM SS.f)
+    //   Col 4: (blank)
+    //   Col 5: Mag (V/T)
+    //   Col 6: S-brt
+    //   Col 7: (blank)
+    //   Col 8: delta (AU)
+    //   Col 9: deldot (km/s)
+    //
+    // But some targets produce different column counts.
+    // Try to find RA by looking for HH MM SS pattern in the row.
+
+    let ra = '';
+    let dec = '';
+    let magnitude = '';
+    let distAu = '';
+    let velocity = '';
+
+    // Strategy: find columns containing sexagesimal coordinates
+    // RA pattern: "HH MM SS.ff" (all positive, 0-23 hours)
+    // Dec pattern: "sDD MM SS.f" (signed, degrees)
+    const raRegex = /^\s*(\d{1,2}\s+\d{2}\s+\d{2}\.\d+)\s*$/;
+    const decRegex = /^\s*([+-]?\d{1,2}\s+\d{2}\s+\d{2}\.\d*)\s*$/;
+
+    for (let i = 1; i < row.length; i++) {
+      const val = row[i]?.trim() || '';
+      if (!ra && raRegex.test(val)) {
+        ra = val;
+      } else if (ra && !dec && decRegex.test(val)) {
+        dec = val;
+      } else if (ra && dec && !magnitude && val && /^[\d.]+$/.test(val)) {
+        magnitude = val;
+      }
+    }
+
+    // Fallback: use positional columns if regex didn't match
+    if (!ra && row.length >= 4) {
+      ra = row[2]?.trim() || '';
+      dec = row[3]?.trim() || '';
+      magnitude = row[5]?.trim() || '';
+    }
+
+    // Find distance (AU) — look for a decimal number around 0.01-100
+    for (let i = 4; i < row.length; i++) {
+      const val = parseFloat(row[i]?.trim() || '');
+      if (!isNaN(val) && val > 0.001 && val < 1000 && !distAu) {
+        distAu = row[i]?.trim() || '';
+        // Next column is likely velocity
+        if (i + 1 < row.length) velocity = row[i + 1]?.trim() || '';
+        break;
+      }
+    }
+
+    // Convert sexagesimal RA (HH MM SS) to decimal degrees
+    const raMatch = ra.match(/(\d+)\s+(\d+)\s+([\d.]+)/);
+    if (raMatch) {
+      const raDeg = (parseInt(raMatch[1]) + parseInt(raMatch[2]) / 60 + parseFloat(raMatch[3]) / 3600) * 15;
+      ra = raDeg.toFixed(4);
+    }
+
+    // Convert sexagesimal Dec (±DD MM SS) to decimal degrees
+    const decMatch = dec.match(/([+-]?\d+)\s+(\d+)\s+([\d.]+)/);
+    if (decMatch) {
+      const sign = decMatch[1].startsWith('-') ? -1 : 1;
+      const decDeg = sign * (Math.abs(parseInt(decMatch[1])) + parseInt(decMatch[2]) / 60 + parseFloat(decMatch[3]) / 3600);
+      dec = decDeg.toFixed(4);
+    }
+
+    // Check if we got valid data
+    if (!ra || !dec) {
+      if (onLog) onLog(`[HORIZONS] Failed to parse RA/Dec from response`);
+      return null;
+    }
 
     const data: HorizonsData = {
         id: target,
         timestamp: row[0]?.trim(),
-        ra: row[1]?.trim(),
-        dec: row[2]?.trim(),
-        magnitude: row[3]?.trim(),
-        distance_au: row[5]?.trim(),
-        velocity_kms: row[6]?.trim()
+        ra,
+        dec,
+        magnitude,
+        distance_au: distAu,
+        velocity_kms: velocity
     };
-    
-    if (onLog) onLog(`[HORIZONS] Ephemeris Lock: RA ${data.ra}, Dec ${data.dec}, Mag ${data.magnitude}`);
+
+    if (onLog) onLog(`[HORIZONS] Ephemeris Lock: RA ${data.ra}°, Dec ${data.dec}°, Mag ${data.magnitude}`);
 
     return data;
 

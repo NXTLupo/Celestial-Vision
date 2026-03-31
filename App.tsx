@@ -362,13 +362,17 @@ const App: React.FC = () => {
                 // Interstellar objects (1I, 2I, 3I) and short periodic designations
                 // need raw COMMAND format, not DES= prefix, in JPL Horizons
                 const needsRawCommand = /^\d+I$/i.test(comet.id) || /^\d+P$/i.test(comet.id);
+                addLog(`[COMET SURVEY] Querying Horizons for ${comet.name} (${comet.id})${needsRawCommand ? ' [raw command]' : ''}...`, 'info');
                 const eph = await fetchHorizonsEphemeris(
                   comet.id, exif.timestamp,
                   exif.location?.lat, exif.location?.lon,
-                  undefined, // onLog
+                  (msg) => addLog(msg, 'info'),
                   needsRawCommand
                 );
-                if (!eph || !eph.ra || !eph.dec) continue;
+                if (!eph || !eph.ra || !eph.dec) {
+                  addLog(`[COMET SURVEY] ${comet.name}: Horizons returned no ephemeris data`, 'warning');
+                  continue;
+                }
 
                 const eRa = parseFloat(eph.ra);
                 const eDec = parseFloat(eph.dec);
@@ -413,8 +417,8 @@ const App: React.FC = () => {
                 }
 
                 await new Promise(r => setTimeout(r, 400)); // Rate limit Horizons
-              } catch {
-                // Skip this comet, continue to next
+              } catch (cometErr: any) {
+                addLog(`[COMET SURVEY] ${comet.name}: query failed — ${cometErr.message || 'unknown error'}`, 'warning');
               }
             }
 
