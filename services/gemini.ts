@@ -880,7 +880,23 @@ export const generateInstagramCaption = async (
 ): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  const objectList = (context.identifications || [])
+  // Check if there are actually visible satellite trails (not just "overhead" satellites).
+  // If no satellites are in context.satellites, any satellite/debris identifications
+  // were hallucinated by the analysis and must be excluded from the Instagram post.
+  const hasSatelliteEvidence = ((context as any).satellites || []).length > 0;
+
+  // Filter identifications: exclude satellite/debris types if no visual evidence exists
+  const filteredIdentifications = (context.identifications || []).filter(id => {
+    if (!hasSatelliteEvidence) {
+      const t = (id.object_type || '').toLowerCase();
+      if (t.includes('satellite') || t.includes('debris') || t.includes('streak')) {
+        return false; // Remove hallucinated satellite identifications
+      }
+    }
+    return true;
+  });
+
+  const objectList = filteredIdentifications
     .map(id => `${id.primary_name} (${id.object_type}, RA: ${id.ra}, Dec: ${id.dec}, Confidence: ${id.confidence})`)
     .join('\n');
 
@@ -888,10 +904,12 @@ export const generateInstagramCaption = async (
   const fov = context.plate_solve.field_of_view || 'unknown';
 
   const inFieldNeos = (context.neos || []).filter((n: any) => n.in_field);
-  const streaks = (context.identifications || []).filter(id => {
-    const t = (id.object_type || '').toLowerCase();
-    return t.includes('satellite') || t.includes('debris') || t.includes('streak');
-  });
+  const streaks = hasSatelliteEvidence
+    ? filteredIdentifications.filter(id => {
+        const t = (id.object_type || '').toLowerCase();
+        return t.includes('satellite') || t.includes('debris') || t.includes('streak');
+      })
+    : []; // NO satellite/debris in caption when no visual evidence
 
   // Build archival plate context for historical flavor
   let archivalContext = '';
