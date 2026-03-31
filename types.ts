@@ -165,6 +165,34 @@ export interface IdentificationResult {
   generated_annotation_image?: string;
 }
 
+export interface ImageExposureInfo {
+  isStacked: boolean;
+  subExposureSec: number;    // Single frame: 30 for "300x30s", 120 for "120s"
+  totalExposureSec: number;  // Full integration: 9000 for "300x30s", 120 for "120s"
+  frameCount: number;        // 300 for "300x30s", 1 for "120s"
+  rawString: string;
+}
+
+export interface FactSheet {
+  target_name: string | null;
+  target_type: string | null;
+  target_was_intentional: boolean;
+  distance_au: string | null;
+  magnitude: string | null;
+  magnitude_source: 'COBS observed' | 'JPL predicted' | null;
+  ra: string | null;
+  dec: string | null;
+  constellation: string | null;
+  fov_degrees: string | null;
+  exposure_info: string | null;
+  image_type: 'stacked' | 'single' | 'unknown';
+  observation_date: string | null;
+  visible_streak_count: number;
+  satellite_count_overhead: number;
+  neo_count_in_field: number;
+  identified_objects: string[];
+}
+
 export interface ThoughtLog {
   timestamp: string;
   message: string;

@@ -4,7 +4,7 @@ import { Header } from './components/Header';
 import { ImageUploader } from './components/ImageUploader';
 import { ResultsDashboard } from './components/ResultsDashboard';
 import { ProcessingOverlay } from './components/ProcessingOverlay';
-import { IdentificationResult, ProcessingState, ThoughtLog } from './types';
+import { IdentificationResult, ProcessingState, ThoughtLog, FactSheet } from './types';
 import { analyzeCelestialImageStream, preScangImage, detectStreaks, DetectedStreak } from './services/gemini';
 import { solveAstrometry } from './services/astrometry';
 import { fetchNearEarthObjects, enrichNeosWithEphemeris } from './services/nasa';
@@ -315,6 +315,27 @@ const App: React.FC = () => {
       }
 
       if (detectedStreaks && detectedStreaks.length > 0) {
+        // VALIDATE streak coordinates — reject hallucinated streaks with impossible geometry
+        const imgW = imgDims.width;
+        const imgH = imgDims.height;
+        const imgDiag = Math.sqrt(imgW * imgW + imgH * imgH);
+        detectedStreaks = detectedStreaks.filter((s, i) => {
+          const inBounds = s.pixel_start_x >= 0 && s.pixel_start_x <= imgW &&
+                           s.pixel_end_x >= 0 && s.pixel_end_x <= imgW &&
+                           s.pixel_start_y >= 0 && s.pixel_start_y <= imgH &&
+                           s.pixel_end_y >= 0 && s.pixel_end_y <= imgH;
+          const length = Math.sqrt(
+            (s.pixel_end_x - s.pixel_start_x) ** 2 + (s.pixel_end_y - s.pixel_start_y) ** 2
+          );
+          const validLength = length >= 30 && length <= imgDiag;
+          const notZero = s.pixel_start_x !== s.pixel_end_x || s.pixel_start_y !== s.pixel_end_y;
+          if (!inBounds || !validLength || !notZero) {
+            addLog(`⚠ [STREAK VALIDATE] Rejected streak #${i + 1}: out of bounds or invalid length (${length.toFixed(0)}px)`, 'warning');
+            return false;
+          }
+          return true;
+        });
+
         addLog(`✓ [STREAK DETECT] ${detectedStreaks.length} linear feature(s) detected in image`, 'success');
         detectedStreaks.forEach((s, i) => {
           addLog(`  Streak #${i + 1}: (${s.pixel_start_x},${s.pixel_start_y})→(${s.pixel_end_x},${s.pixel_end_y}), ${s.brightness}, ${s.description || 'no description'}`, 'info');
@@ -567,7 +588,7 @@ const App: React.FC = () => {
           detectedStreaks,
           (msg) => addLog(msg, 'info')
         );
-        const bestMatch = satelliteMatches.find(s => (s.streakMatchScore || 0) > 0.3);
+        const bestMatch = satelliteMatches.find(s => (s.streakMatchScore || 0) > 0.5);
         if (bestMatch) {
           addLog(`[SAT ID] ✓ IDENTIFIED: ${bestMatch.name} (NORAD ${bestMatch.noradId}) — ${((bestMatch.streakMatchScore || 0) * 100).toFixed(0)}% geometric match, transit angle ${bestMatch.transitAngleDeg?.toFixed(1)}°, altitude ${bestMatch.altitude.toFixed(0)}km`, 'success');
         }
@@ -747,25 +768,25 @@ const App: React.FC = () => {
           // Example: FREGAT R/B at 3.52° from center, moving 12'/min, 24min exposure:
           //   travel = 12 × 24 / 60 = 4.8°, halfTravel = 2.4°
           //   couldCross = 3.52 <= 1.22 + 2.4 = 3.62° → YES
-          // Parse exposure to minutes — exif.exposure can be "24min", "120s", "300x30s", etc.
-          let exposureMin = 1;
-          if (exif.exposure) {
-            const expStr = exif.exposure.toLowerCase();
-            const minMatch = expStr.match(/([\d.]+)\s*min/);
-            const secMatch = expStr.match(/([\d.]+)\s*s/);
-            const stackMatch = expStr.match(/([\d]+)\s*x\s*([\d.]+)\s*s/);
-            if (minMatch) exposureMin = parseFloat(minMatch[1]);
-            else if (stackMatch) exposureMin = (parseInt(stackMatch[1]) * parseFloat(stackMatch[2])) / 60;
-            else if (secMatch) exposureMin = parseFloat(secMatch[1]) / 60;
-            else exposureMin = parseFloat(exif.exposure) / 60 || 1;
+          // Use SUB-FRAME exposure for satellite crossing calculation.
+          // For stacked images ("300x30s"), a satellite trail only appears in
+          // ONE sub-frame (30s). The stacking process rejects transient features.
+          const { parseExposureInfo: parseExpInfo } = await import('./services/satellites');
+          const plutoExpInfo = parseExpInfo(exif.exposure);
+          const exposureMin = plutoExpInfo.subExposureSec / 60;
+          if (plutoExpInfo.isStacked) {
+            addLog(`[PROJECT PLUTO] Stacked image detected (${plutoExpInfo.frameCount}x${plutoExpInfo.subExposureSec}s). Using ${plutoExpInfo.subExposureSec}s sub-frame for satellite crossing calculation, not ${plutoExpInfo.totalExposureSec}s total.`, 'info');
           }
+
+          // Cap maxSep to prevent absurd thresholds for fast-moving satellites
+          const maxSepCap = Math.max(fovRadius * 3, 3.0);
 
           const plutoInFov = plutoResults.filter(p => {
             const travelDeg = (p.motionArcminPerMin * exposureMin) / 60;
-            const maxSep = fovRadius + travelDeg / 2;
+            const maxSep = Math.min(fovRadius + travelDeg / 2, maxSepCap);
             const couldCross = p.angularSepFromCenter <= maxSep;
             if (couldCross && p.angularSepFromCenter > fovRadius) {
-              addLog(`[PROJECT PLUTO] ${p.name}: midpoint is ${p.angularSepFromCenter.toFixed(2)}° from center, but moves ${travelDeg.toFixed(1)}° during ${exposureMin}min exposure — COULD CROSS FOV (threshold: ${maxSep.toFixed(2)}°)`, 'info');
+              addLog(`[PROJECT PLUTO] ${p.name}: midpoint is ${p.angularSepFromCenter.toFixed(2)}° from center, but moves ${travelDeg.toFixed(1)}° during ${exposureMin.toFixed(1)}min sub-frame — COULD CROSS FOV (threshold: ${maxSep.toFixed(2)}°, cap: ${maxSepCap.toFixed(2)}°)`, 'info');
             }
             return couldCross;
           });
@@ -829,9 +850,39 @@ const App: React.FC = () => {
         );
       }
 
+      // ══════════════════════════════════════════════════════════════
+      // BUILD FACTSHEET — deterministic, verified data block.
+      // This is the SINGLE SOURCE OF TRUTH for numeric values.
+      // Gemini MUST quote these exactly. No LLM involvement in populating it.
+      // ══════════════════════════════════════════════════════════════
+      const cobsRecentMag = cometResult?.recent_observations?.[0]?.magnitude;
+      const jplMag = horizonsResult?.magnitude;
+      const factExpInfo = (await import('./services/satellites')).parseExposureInfo(exif.exposure);
+
+      const factSheet: FactSheet = {
+        target_name: target || horizonsResult?.id || null,
+        target_type: cometResult ? 'comet' : (target ? 'deep_sky' : null),
+        target_was_intentional: !!(target),
+        distance_au: horizonsResult?.distance_au || null,
+        magnitude: cobsRecentMag || jplMag || null,
+        magnitude_source: cobsRecentMag ? 'COBS observed' : (jplMag ? 'JPL predicted' : null),
+        ra: astrometryResult?.center_ra || null,
+        dec: astrometryResult?.center_dec || null,
+        constellation: astrometryResult?.constellation || null,
+        fov_degrees: astrometryResult?.field_of_view || null,
+        exposure_info: exif.exposure || null,
+        image_type: factExpInfo.isStacked ? 'stacked' : (exif.exposure ? 'single' : 'unknown'),
+        observation_date: exif.timestamp || null,
+        visible_streak_count: detectedStreaks?.length || 0,
+        satellite_count_overhead: satelliteMatches.length,
+        neo_count_in_field: (neoResult || []).filter((n: any) => n.in_field).length,
+        identified_objects: [],
+      };
+      (exif as any).factSheet = factSheet;
+
       // STAGE 2: Analysis (Vision or Meta)
       setStatus(prev => ({ ...prev, step: 'analyzing', message: astrometryResult ? 'Formatting Astrometry.net Data...' : 'Performing Visual Identification...', progress: 60 }));
-      
+
       // ══════════════════════════════════════════════════════════════
       // SATELLITE FILTERING — Only pass satellites that have VISUAL EVIDENCE
       //
@@ -888,6 +939,11 @@ const App: React.FC = () => {
       analysis.neos = neoResult;
       analysis.comet = cometResult;
       analysis.horizons = horizonsResult;
+      // Populate identified_objects on FactSheet now that analysis is complete
+      factSheet.identified_objects = (analysis.identifications || [])
+        .filter(id => id.primary_name)
+        .map(id => id.primary_name!);
+      (analysis as any).factSheet = factSheet;
       // Only pass satellites that were NOT disproved by SatChecker to downstream consumers (Gemini, dashboard).
       // Disproved satellites (SatChecker confirmed they are NOT in the FOV) must be excluded
       // to prevent Gemini from narrating false identifications.
@@ -994,7 +1050,7 @@ const App: React.FC = () => {
           if (isPlutoVerified) {
             confidence = 0.95;
             verificationStatus = 'wcs_confirmed';
-          } else if (bestCandidate?.isVerified && bestCandidate.streakScore > 0.3) {
+          } else if (bestCandidate?.isVerified && bestCandidate.streakScore > 0.5) {
             confidence = 0.90;
             verificationStatus = 'wcs_confirmed';
           } else if (bestCandidate?.isVerified) {
