@@ -248,6 +248,15 @@ const App: React.FC = () => {
       if (preScan.exposure) {
         exif.exposure = preScan.exposure;
       }
+      // If pre-scan didn't find exposure, try extracting from filename.
+      // Seestar filenames: "Stacked_52_light_EQ_20.0s_..." → "52x20.0s"
+      if (!exif.exposure && file.name) {
+        const stackedMatch = file.name.match(/Stacked[_\s]+(\d+).*?(\d+\.?\d*)s/i);
+        if (stackedMatch) {
+          exif.exposure = `${stackedMatch[1]}x${stackedMatch[2]}s`;
+          addLog(`[EXIF] Exposure extracted from filename: ${exif.exposure} (stacked)`, 'info');
+        }
+      }
 
       // Final check — if still no date after pre-scan + EXIF + manual
       if (!exif.timestamp) {
@@ -415,7 +424,7 @@ const App: React.FC = () => {
                     const angularSep = Math.sqrt(dRa * dRa + dDec * dDec);
                     inFov = angularSep <= fovR;
 
-                    addLog(`[COMET SURVEY] ${comet.name}: RA=${eph.ra}, Dec=${eph.dec}, Mag=${eph.magnitude || '?'}, sep=${angularSep.toFixed(3)}° ${inFov ? '** IN FOV **' : `(outside, ${angularSep.toFixed(1)}° from center)`}`, inFov ? 'success' : 'info');
+                    addLog(`[COMET SURVEY] ${comet.name}: RA=${eph.ra}, Dec=${eph.dec}, Mag=${eph.magnitude || '?'}, Dist=${eph.distance_au || '?'} AU, sep=${angularSep.toFixed(3)}° ${inFov ? '** IN FOV **' : `(outside, ${angularSep.toFixed(1)}° from center)`}`, inFov ? 'success' : 'info');
                   }
                 } else {
                   // NO PLATE SOLVE: can't check FOV geometrically.
@@ -778,11 +787,12 @@ const App: React.FC = () => {
             addLog(`[PROJECT PLUTO] Stacked image detected (${plutoExpInfo.frameCount}x${plutoExpInfo.subExposureSec}s). Using ${plutoExpInfo.subExposureSec}s sub-frame for satellite crossing calculation, not ${plutoExpInfo.totalExposureSec}s total.`, 'info');
           }
 
-          // Cap maxSep to prevent absurd thresholds for fast-moving satellites.
-          // fovRadius * 2 is generous — a satellite whose midpoint is 2x the FOV
-          // away would need to travel the entire FOV diameter in half the exposure
-          // to clip the edge. That's already a very generous assumption.
-          const maxSepCap = Math.max(fovRadius * 2, 2.0);
+          // Cap maxSep differently for stacked vs single exposures:
+          // - Stacked: tight cap (fovRadius * 2) — trails rejected during stacking anyway
+          // - Single: looser cap (fovRadius * 4) — long exposures genuinely capture trails
+          const maxSepCap = plutoExpInfo.isStacked
+            ? Math.max(fovRadius * 2, 2.0)   // Stacked: tight (trails rejected)
+            : Math.max(fovRadius * 4, 5.0);  // Single: generous (trails are real)
 
           const plutoInFov = plutoResults.filter(p => {
             const travelDeg = (p.motionArcminPerMin * exposureMin) / 60;

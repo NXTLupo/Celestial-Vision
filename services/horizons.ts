@@ -125,6 +125,7 @@ export const fetchHorizonsEphemeris = async (
     const raRegex = /^\s*(\d{1,2}\s+\d{2}\s+\d{2}\.\d+)\s*$/;
     const decRegex = /^\s*([+-]?\d{1,2}\s+\d{2}\s+\d{2}\.\d*)\s*$/;
 
+    let magColIdx = -1;
     for (let i = 1; i < row.length; i++) {
       const val = row[i]?.trim() || '';
       if (!ra && raRegex.test(val)) {
@@ -133,6 +134,7 @@ export const fetchHorizonsEphemeris = async (
         dec = val;
       } else if (ra && dec && !magnitude && val && /^[\d.]+$/.test(val)) {
         magnitude = val;
+        magColIdx = i; // Track the actual column index
       }
     }
 
@@ -145,17 +147,7 @@ export const fetchHorizonsEphemeris = async (
 
     // Find distance (AU) and velocity — they come AFTER magnitude and S-brt.
     // CSV layout: ..., Mag, S-brt, delta(AU), deldot(km/s)
-    // We already found magnitude. Distance is the NEXT numeric value after
-    // skipping magnitude and S-brt columns.
-    // Strategy: find the column index where we found magnitude, then look
-    // 2-3 columns later for distance.
-    let magColIdx = -1;
-    for (let i = 1; i < row.length; i++) {
-      if (row[i]?.trim() === magnitude && magnitude) {
-        magColIdx = i;
-        break;
-      }
-    }
+    // magColIdx was set during the regex scan above — it's the exact column.
     if (magColIdx >= 0) {
       // Distance should be 2-3 columns after magnitude (skip S-brt which may be "n.a.")
       for (let i = magColIdx + 1; i < Math.min(magColIdx + 4, row.length); i++) {
@@ -199,6 +191,14 @@ export const fetchHorizonsEphemeris = async (
       return null;
     }
 
+    // STRUCTURAL SANITY CHECK: distance_au must NOT equal magnitude.
+    // If they match, the parser grabbed the wrong column.
+    if (distAu && magnitude && distAu === magnitude) {
+      if (onLog) onLog(`[HORIZONS] ⚠ SANITY FAIL: distance_au (${distAu}) equals magnitude (${magnitude}) — parser error. Clearing distance.`);
+      distAu = '';
+      velocity = '';
+    }
+
     const data: HorizonsData = {
         id: target,
         timestamp: row[0]?.trim(),
@@ -209,7 +209,7 @@ export const fetchHorizonsEphemeris = async (
         velocity_kms: velocity
     };
 
-    if (onLog) onLog(`[HORIZONS] Ephemeris Lock: RA ${data.ra}°, Dec ${data.dec}°, Mag ${data.magnitude}`);
+    if (onLog) onLog(`[HORIZONS] Ephemeris Lock: RA ${data.ra}°, Dec ${data.dec}°, Mag ${data.magnitude}, Dist ${data.distance_au || 'unknown'} AU`);
 
     return data;
 
