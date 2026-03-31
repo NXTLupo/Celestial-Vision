@@ -832,11 +832,38 @@ const App: React.FC = () => {
       // STAGE 2: Analysis (Vision or Meta)
       setStatus(prev => ({ ...prev, step: 'analyzing', message: astrometryResult ? 'Formatting Astrometry.net Data...' : 'Performing Visual Identification...', progress: 60 }));
       
-      // Filter out SatChecker-disproved satellites BEFORE passing to Gemini.
-      // Gemini narrates whatever data we give it — if we pass disproved satellites,
-      // it will report them as confirmed findings. Only pass verified or unverified
-      // (but not disproved) candidates.
-      const confirmedSatellites = satelliteMatches.filter(s => !(s as any).satCheckerDisproved);
+      // ══════════════════════════════════════════════════════════════
+      // SATELLITE FILTERING — Only pass satellites that have VISUAL EVIDENCE
+      //
+      // CRITICAL DISTINCTION:
+      //   "A satellite was overhead" ≠ "A satellite trail is in the image"
+      //
+      // SGP4/SatChecker/Pluto tell us which satellites WERE IN THE SKY at
+      // observation time. But that doesn't mean they left visible trails.
+      // Stacked astrophotography images actively REJECT satellite trails
+      // during the stacking process. The streak detector is the ground truth
+      // for whether a trail is actually VISIBLE in the final image.
+      //
+      // Rules:
+      //   - If streak detector found streaks → pass matched satellites
+      //   - If NO streaks detected → satellites are CONTEXT ONLY, not identifications
+      //   - Never let Gemini claim satellites are "visible" when streak detector said zero
+      // ══════════════════════════════════════════════════════════════
+      const hasVisibleStreaks = detectedStreaks && detectedStreaks.length > 0;
+      let confirmedSatellites: typeof satelliteMatches;
+
+      if (hasVisibleStreaks) {
+        // Streaks exist — pass satellites that aren't disproved
+        confirmedSatellites = satelliteMatches.filter(s => !(s as any).satCheckerDisproved);
+      } else {
+        // NO streaks detected — satellites are overhead context only.
+        // Do NOT pass them as identifications — Gemini will hallucinate
+        // that they're visible in the image.
+        confirmedSatellites = [];
+        if (satelliteMatches.length > 0) {
+          addLog(`[FILTER] ${satelliteMatches.length} satellite(s) were overhead but NO streaks detected in image. Satellites will NOT be reported as visible objects. Stacked images typically reject satellite trails.`, 'info');
+        }
+      }
 
       const analysis = await analyzeCelestialImageStream(
           base64,
@@ -864,7 +891,13 @@ const App: React.FC = () => {
       // Only pass satellites that were NOT disproved by SatChecker to downstream consumers (Gemini, dashboard).
       // Disproved satellites (SatChecker confirmed they are NOT in the FOV) must be excluded
       // to prevent Gemini from narrating false identifications.
-      analysis.satellites = satelliteMatches.filter(s => !(s as any).satCheckerDisproved);
+      // Only include satellites that have visual evidence (streaks) in the dashboard.
+      // "Overhead at this time" satellites without visible trails are context, not findings.
+      analysis.satellites = hasVisibleStreaks
+        ? satelliteMatches.filter(s => !(s as any).satCheckerDisproved)
+        : [];
+      // Store full overhead list separately for reference (but NOT for Gemini narration)
+      (analysis as any).satellitesOverhead = satelliteMatches.filter(s => !(s as any).satCheckerDisproved);
 
       // ══════════════════════════════════════════════════════════════
       // DETERMINISTIC STREAK + SATELLITE INJECTION
@@ -1034,9 +1067,12 @@ const App: React.FC = () => {
 
       // STAGE 6: RESOLVE UNKNOWNS — exhaust every database for unidentified objects
       setStatus(prev => ({ ...prev, message: 'Resolving unknown objects...', progress: 90 }));
-      // Filter out disproved satellites before resolver — otherwise it re-matches
-      // objects that SatChecker/Pluto already proved are NOT in the FOV
-      const resolverSatellites = satelliteMatches.filter(s => !(s as any).satCheckerDisproved);
+      // Only pass satellites to resolver if there are actual visible streaks.
+      // Without streaks, satellite matches are just "overhead" data — the resolver
+      // should NOT re-identify unknowns as satellites when there's no visual evidence.
+      const resolverSatellites = hasVisibleStreaks
+        ? satelliteMatches.filter(s => !(s as any).satCheckerDisproved)
+        : [];
       analysis.identifications = await resolveUnknownObjects(
         analysis, exif, astrometryResult, neoResult,
         resolverSatellites, detectedStreaks,

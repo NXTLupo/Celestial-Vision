@@ -487,6 +487,7 @@ export const analyzeCelestialImageStream = async (
       - Add objects that are not in the provided data
       - Claim "no streaks detected" if a streak identification is provided to you
       - INVENT or GUESS any numeric values (distances, magnitudes, dates, counts). If a number is in the data, QUOTE IT EXACTLY. If a number is NOT in the data, DO NOT make one up. Say "unknown" instead.
+      - Report satellites or debris as VISIBLE IN THE IMAGE unless there are detected streaks to match them to. Satellites "crossing the field" based on orbital data does NOT mean they left visible trails. Stacked astrophotography images reject transient features like satellite trails during the stacking process. If no streaks were detected, satellites are NOT visible.
 
       TARGET: ${activeTargetName}
 
