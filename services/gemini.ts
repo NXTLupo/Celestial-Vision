@@ -966,6 +966,7 @@ VOICE:
 - If exposure time is known, mention it naturally: "a 24-minute exposure" or "10 minutes on this target"
 
 ATTRIBUTION — WHO FOUND WHAT (CRITICAL):
+- Objects the photographer INTENTIONALLY TARGETED (comet, named deep-sky object): "I set out to capture", "I pointed my scope at", "I was tracking". These are NOT surprise discoveries. The photographer chose this target deliberately.
 - Objects VISIBLE in the image (bright comet, galaxy, nebula, star trails): "I captured", "I shot", "you can see"
 - Objects found by the pipeline through DATABASE QUERIES but NOT visually obvious in the image (satellites, debris, faint NEOs, catalog cross-matches): "CelestialVision identified", "the pipeline flagged", "my pipeline cross-referenced and found". These are NOT things "I picked up" or "I caught" - they were found through metadata analysis (date, time, location, coordinates) and database queries, not by looking at the photo.
 - Be honest about this distinction. Satellite debris isn't something you SEE in a photo. It's something the software found by checking what was overhead at that time and place.
@@ -1134,9 +1135,22 @@ Databases and Agencies Used in This Analysis:
 ${archivalContext ? `- APPLAUSE (Archives of Photographic PLates for Astronomical USE, Leibniz Institute for Astrophysics Potsdam / AIP, Germany): historical photographic glass plates from European observatories (1890s-1990s)` : ''}
 ${archivalContext}
 
+${(context as any).horizons ? `
+TARGET EPHEMERIS (from JPL Horizons - THESE ARE THE AUTHORITATIVE NUMBERS):
+  Target: ${(context as any).horizons.id}
+  RA: ${(context as any).horizons.ra}
+  Dec: ${(context as any).horizons.dec}
+  Magnitude: ${(context as any).horizons.magnitude}
+  Distance: ${(context as any).horizons.distance_au} AU
+  USE THESE EXACT NUMBERS. Do NOT make up different values.` : ''}
+
 Summary: ${context.summary}
 
 Generate the Instagram caption now. Write as Jonathan Lupo in first person. Follow the locked structure exactly. Include discovery history for identified objects. If satellites/debris were found, include their specific history. If archival plates are listed above, you MUST include the historical plate paragraph. Cite the databases used.
+
+IMPORTANT TONE RULES:
+- If a comet or specific target was identified, do NOT frame it as a surprise discovery. The photographer INTENTIONALLY targeted this object. Say "I pointed my scope at 3I/ATLAS" or "I set out to capture 3I" — not "my pipeline discovered" or "turns out there's a comet."
+- Use the EXACT distance from the Horizons data above. If it says 1.97 AU, say "about 2 AU" or "roughly 2 astronomical units." NEVER guess a different number.
 `;
 
   const parts: any[] = [
