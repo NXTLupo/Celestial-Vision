@@ -946,14 +946,17 @@ HISTORICAL PLATE STORYTELLING (if archival plates were analyzed):
 
 DATABASE CITATIONS (REQUIRED — list every database used in the analysis):
 Explicitly cite EACH database that contributed to the analysis. Format naturally, not as a bulleted list:
-- Astrometry.net — plate solving, WCS calibration
-- NASA NeoWs — near-Earth object detection
-- JPL Horizons — precise ephemeris computation
-- CelesTrak — satellite TLE catalog (~27,000 tracked objects)
-- IAU CPS SatChecker — satellite ephemeris verification
-- COBS (Comet Observation Database) — comet visibility data
-- APPLAUSE — archival photographic plates (if used)
-- Google Gemini — AI synthesis of pipeline results
+- Astrometry.net (Dustin Lang, University of Toronto) — plate solving, WCS calibration
+- NASA NeoWs (NASA Jet Propulsion Laboratory / CNEOS) — near-Earth object detection
+- JPL Horizons (NASA JPL / Solar System Dynamics Group) — precise ephemeris computation
+- CelesTrak (Dr. T.S. Kelso / AGI) — satellite TLE catalog (~27,000 tracked objects from US Space Force 18th Space Defense Squadron)
+- IAU CPS SatChecker (International Astronomical Union Centre for the Protection of Dark and Quiet Sky) — satellite ephemeris verification
+- Project Pluto (Bill Gray / sat_code) — authoritative satellite identification using historical TLEs
+- COBS (Comet Observation Database / Crni Vrh Observatory, Slovenia) — comet visibility data
+- US Space Force 18th SDS (via Space-Track.org) — space surveillance catalog, the primary source of TLE orbital data worldwide
+- ESA GAIA DR3 (European Space Agency) — reference star catalog
+- APPLAUSE (Leibniz Institute for Astrophysics Potsdam / AIP) — archival photographic plates (if used)
+- Google Gemini — AI synthesis of deterministic pipeline results
 
 STRUCTURE (locked format — follow exactly):
 LINE 1: A personal hook under 125 characters. Draws the reader in. This shows before "...more".
@@ -962,15 +965,48 @@ LINES 3-8: 2-3 paragraphs. The story of what I captured and what the pipeline fo
 LINE 9: Empty line
 LINES 10-12: If archival plates exist: 1 paragraph about the historical plate comparison with telescope history. If no archival plates: skip this section entirely.
 LINE 13: Empty line
-LINE 14: Citations paragraph. Natural prose citing databases: "Field plate-solved via Astrometry.net. Objects cross-referenced against NASA's NeoWs database, JPL Horizons ephemeris, CelesTrak's orbital catalog, and the IAU SatChecker. Analysis synthesized by Google Gemini."
+LINE 14: Citations paragraph. Natural prose citing databases and their operators: "Field plate-solved via Astrometry.net. Objects cross-referenced against NASA JPL's NeoWs and Horizons databases, the US Space Force 18th SDS orbital catalog via CelesTrak, the IAU's SatChecker service, and Bill Gray's Project Pluto sat_code. Analysis synthesized by Google Gemini."
 LINE 15: Empty line
 LINE 16: Exactly: "Captured and analyzed by Jonathan Lupo // CelestialVision AI"
 LINE 17: Empty line
-LINE 18: 15-25 hashtags. MUST include: #astrophotography #CelestialVisionAI #AstrometryNet #JPLHorizons #BackyardAstronomy
-Also include: object-specific tags (e.g. #M51 #WhirlpoolGalaxy), constellation tags (e.g. #CanesVenatici), instrument tags if known.
-${streaks.length > 0 ? 'Include #SpaceDebris #SpaceSituationalAwareness #SatelliteTrail #CelesTrak #IAUSatChecker' : ''}
-${inFieldNeos.length > 0 ? 'Include #NearEarthObject #PlanetaryDefense #AsteroidWatch #NASANeoWs' : ''}
-${archivalReports && archivalReports.length > 0 ? 'Include #APPLAUSE #PhotographicPlates #ArchivalAstronomy #HistoryOfScience' : ''}
+LINE 18: 20-30 hashtags organized by category. Select from the MANDATORY and CONDITIONAL lists below:
+
+MANDATORY HASHTAGS (always include):
+#astrophotography #CelestialVisionAI #BackyardAstronomy #DeepSky
+
+Database/Agency source tags (always include):
+#AstrometryNet #NASA #JPL #JPLHorizons #GoogleGemini
+
+Government/institutional tags (always include):
+#USSF #SpaceForce #USSpaceCommand #ESA #GAIADR3
+
+Include object-specific tags for EACH identified object:
+- Messier objects: #M51 #MessierMonday (or appropriate Messier tag)
+- NGC objects: #NGC5194 #NGC5195 etc.
+- IC objects: #IC4263 etc.
+- Common names: #WhirlpoolGalaxy #OrionNebula #AndromedaGalaxy etc.
+- Constellation: #CanesVenatici #Orion #Andromeda etc.
+
+Include instrument tags if known: #Seestar #SeeStar30 #ZWO #SmartTelescope etc.
+
+${streaks.length > 0 ? `CONDITIONAL — Satellite/Debris detected (include ALL):
+#SpaceDebris #SpaceSituationalAwareness #SatelliteTrail #OrbitalDebris
+#CelesTrak #IAU #IAUSatChecker #IAUCentre #DarkAndQuietSky
+#ProjectPluto #BillGray #SatCode
+#SpaceTrack #18SDS #SpaceSurveillance #SSA
+#Roscosmos (if Russian debris like Cosmos, SL-8, Fregat)
+#CNSA (if Chinese debris like Fengyun, CZ-series)
+#SpaceX #Starlink (if Starlink satellite)
+#OneWeb (if OneWeb satellite)
+#Iridium (if Iridium satellite)` : ''}
+${inFieldNeos.length > 0 ? `CONDITIONAL — Near-Earth Objects detected (include ALL):
+#NearEarthObject #NEO #PlanetaryDefense #AsteroidWatch
+#NASANeoWs #CNEOS #PlanetaryDefenseOfficer
+#Asteroid #NearEarthAsteroid` : ''}
+${archivalReports && archivalReports.length > 0 ? `CONDITIONAL — Archival plates analyzed (include ALL):
+#APPLAUSE #PhotographicPlates #ArchivalAstronomy #HistoryOfScience
+#AIP #LeibnizInstitute #Potsdam
+#GlassPlates #AstronomicalHeritage` : ''}
 
 FAILURE PREVENTION:
 - Total caption MUST be under 2200 characters (Instagram hard limit). If over, CUT hashtags first, then trim history paragraphs. NEVER cut citations.
@@ -984,10 +1020,23 @@ FAILURE PREVENTION:
   // Build satellite match details
   const satellites = (context as any).satellites || [];
   const satelliteDetails = satellites.length > 0
-    ? `\nSatellites/Debris Identified (via CelesTrak + SGP4 + IAU SatChecker):\n${satellites.slice(0, 10).map((s: any) => {
+    ? `\nSatellites/Debris Identified (via CelesTrak + SGP4 + IAU SatChecker + Project Pluto):\n${satellites.slice(0, 10).map((s: any) => {
+        const pluto = s.plutoVerified ? ' [Project Pluto VERIFIED — Bill Gray sat_code, historical TLEs]' : '';
         const verified = s.satCheckerVerified ? ' [IAU SatChecker Verified]' : '';
         const illum = s.illuminated ? 'sunlit' : 'in shadow';
-        return `- ${s.name} (NORAD ${s.noradId}): ${illum}, alt=${Math.round(s.altitude)}km${s.rangeKm ? `, range=${Math.round(s.rangeKm)}km` : ''}${verified}`;
+        const motion = s.plutoMotion ? `, motion=${s.plutoMotion.toFixed(1)}'/min PA=${s.plutoPA?.toFixed(1)}°` : '';
+        // Determine origin agency for hashtag guidance
+        const name = (s.name || '').toUpperCase();
+        let origin = '';
+        if (name.includes('SL-') || name.includes('COSMOS') || name.includes('FREGAT') || name.includes('BREEZE') || name.includes('METEOR')) origin = ' [Russian/Soviet — Roscosmos]';
+        else if (name.includes('CZ-') || name.includes('FENGYUN') || name.includes('HULIANWANG')) origin = ' [Chinese — CNSA]';
+        else if (name.includes('STARLINK')) origin = ' [SpaceX Starlink]';
+        else if (name.includes('ONEWEB')) origin = ' [OneWeb]';
+        else if (name.includes('IRIDIUM')) origin = ' [Iridium Communications]';
+        else if (name.includes('DELTA') || name.includes('ATLAS') || name.includes('TITAN')) origin = ' [US — ULA/NASA legacy]';
+        else if (name.includes('USA ')) origin = ' [US — classified/military]';
+        else if (name.includes('NOAA') || name.includes('GOES')) origin = ' [US — NOAA]';
+        return `- ${s.name} (NORAD ${s.noradId}): ${illum}, alt=${Math.round(s.altitude)}km${s.rangeKm ? `, range=${Math.round(s.rangeKm)}km` : ''}${motion}${origin}${pluto}${verified}`;
       }).join('\n')}`
     : '';
 
@@ -1008,16 +1057,17 @@ ${streaks.length > 0 ? `\nStreaks/Trails Detected: ${streaks.map(s => {
 }).join(', ')}` : ''}
 ${satelliteDetails}
 
-Databases Used in This Analysis:
-- Astrometry.net: plate solving, WCS astrometric calibration
-- NASA NeoWs: near-Earth object detection within 0.1 AU
-- JPL Horizons: precise ephemeris computation for solar system objects
-- CelesTrak: TLE catalog of ~27,000 tracked objects (active satellites, debris, rocket bodies)
-- IAU CPS SatChecker: authoritative satellite ephemeris verification
-- COBS: Comet Observation Database for comet visibility
-- GAIA DR3: reference star catalog
-- Google Gemini: AI synthesis of deterministic pipeline results
-${archivalContext ? `- APPLAUSE: historical photographic glass plates from European observatories (1890s-1990s)` : ''}
+Databases and Agencies Used in This Analysis:
+- Astrometry.net (Dustin Lang, University of Toronto): plate solving, WCS astrometric calibration
+- NASA NeoWs (NASA JPL / Center for Near Earth Object Studies): near-Earth object detection within 0.1 AU
+- JPL Horizons (NASA Jet Propulsion Laboratory, Solar System Dynamics Group): precise ephemeris
+- CelesTrak (Dr. T.S. Kelso): TLE catalog sourced from US Space Force 18th Space Defense Squadron (18 SDS) via Space-Track.org
+- IAU CPS SatChecker (International Astronomical Union, Centre for the Protection of Dark and Quiet Sky from Satellite Constellation Interference): satellite ephemeris verification
+- Project Pluto (Bill Gray, sat_code): authoritative satellite identification using archived historical TLEs — the same tool used by professional asteroid surveyors
+- COBS (Comet Observation Database, Crni Vrh Observatory, Slovenia): comet visibility data
+- ESA GAIA DR3 (European Space Agency): reference star catalog with ~1.8 billion sources
+- Google Gemini 3 Pro: AI synthesis of deterministic pipeline results
+${archivalContext ? `- APPLAUSE (Archives of Photographic PLates for Astronomical USE, Leibniz Institute for Astrophysics Potsdam / AIP, Germany): historical photographic glass plates from European observatories (1890s-1990s)` : ''}
 ${archivalContext}
 
 Summary: ${context.summary}
