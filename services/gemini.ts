@@ -531,7 +531,7 @@ FOV: ${fs.fov_degrees || 'unknown'}
 Exposure: ${fs.exposure_info || 'unknown'}
 Image Type: ${fs.image_type}${fs.image_type === 'stacked' ? ' — satellite trails are REJECTED during stacking and will NOT appear' : ''}
 Visible Streaks: ${fs.visible_streak_count}${fs.visible_streak_count === 0 ? ' — NO satellite trails are visible in this image' : ''}
-Satellites Overhead: ${fs.satellite_count_overhead} (orbital data only — NOT visible unless streaks detected)
+Satellites Overhead: ${fs.visible_streak_count > 0 ? fs.satellite_count_overhead + ' (matched to visible streaks)' : '0 visible (orbital data shows ' + fs.satellite_count_overhead + ' were overhead but NONE left visible trails — DO NOT mention satellite count in output)'}
 NEOs in Field: ${fs.neo_count_in_field}
 ═══ END FACT_SHEET ═══
 Every numeric claim in your output MUST come from FACT_SHEET above. Never invent distances, magnitudes, or counts.

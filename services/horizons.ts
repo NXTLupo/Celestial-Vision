@@ -143,14 +143,38 @@ export const fetchHorizonsEphemeris = async (
       magnitude = row[5]?.trim() || '';
     }
 
-    // Find distance (AU) — look for a decimal number around 0.01-100
-    for (let i = 4; i < row.length; i++) {
-      const val = parseFloat(row[i]?.trim() || '');
-      if (!isNaN(val) && val > 0.001 && val < 1000 && !distAu) {
-        distAu = row[i]?.trim() || '';
-        // Next column is likely velocity
-        if (i + 1 < row.length) velocity = row[i + 1]?.trim() || '';
+    // Find distance (AU) and velocity — they come AFTER magnitude and S-brt.
+    // CSV layout: ..., Mag, S-brt, delta(AU), deldot(km/s)
+    // We already found magnitude. Distance is the NEXT numeric value after
+    // skipping magnitude and S-brt columns.
+    // Strategy: find the column index where we found magnitude, then look
+    // 2-3 columns later for distance.
+    let magColIdx = -1;
+    for (let i = 1; i < row.length; i++) {
+      if (row[i]?.trim() === magnitude && magnitude) {
+        magColIdx = i;
         break;
+      }
+    }
+    if (magColIdx >= 0) {
+      // Distance should be 2-3 columns after magnitude (skip S-brt which may be "n.a.")
+      for (let i = magColIdx + 1; i < Math.min(magColIdx + 4, row.length); i++) {
+        const val = parseFloat(row[i]?.trim() || '');
+        if (!isNaN(val) && val > 0.001 && val < 1000) {
+          distAu = row[i]?.trim() || '';
+          if (i + 1 < row.length) velocity = row[i + 1]?.trim() || '';
+          break;
+        }
+      }
+    }
+    // Fallback: scan from the end for a likely AU distance (0.01-100 range)
+    if (!distAu) {
+      for (let i = row.length - 1; i >= 5; i--) {
+        const val = parseFloat(row[i]?.trim() || '');
+        if (!isNaN(val) && val > 0.01 && val < 100) {
+          distAu = row[i]?.trim() || '';
+          break;
+        }
       }
     }
 

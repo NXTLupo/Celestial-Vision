@@ -778,8 +778,11 @@ const App: React.FC = () => {
             addLog(`[PROJECT PLUTO] Stacked image detected (${plutoExpInfo.frameCount}x${plutoExpInfo.subExposureSec}s). Using ${plutoExpInfo.subExposureSec}s sub-frame for satellite crossing calculation, not ${plutoExpInfo.totalExposureSec}s total.`, 'info');
           }
 
-          // Cap maxSep to prevent absurd thresholds for fast-moving satellites
-          const maxSepCap = Math.max(fovRadius * 3, 3.0);
+          // Cap maxSep to prevent absurd thresholds for fast-moving satellites.
+          // fovRadius * 2 is generous — a satellite whose midpoint is 2x the FOV
+          // away would need to travel the entire FOV diameter in half the exposure
+          // to clip the edge. That's already a very generous assumption.
+          const maxSepCap = Math.max(fovRadius * 2, 2.0);
 
           const plutoInFov = plutoResults.filter(p => {
             const travelDeg = (p.motionArcminPerMin * exposureMin) / 60;
