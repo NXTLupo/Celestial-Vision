@@ -382,10 +382,10 @@ const App: React.FC = () => {
         setStatus(prev => ({ ...prev, message: 'Scanning comet databases for this sky region...', progress: 40 }));
         try {
           addLog(`[COMET SURVEY] Querying COBS for comets visible on ${exif.timestamp}...`, 'info');
-          const visibleComets = await getCometsByDate(exif.timestamp);
+          const visibleComets = await getCometsByDate(exif.timestamp, exif.location?.lat, exif.location?.lon);
 
           if (visibleComets.length > 0) {
-            addLog(`[COMET SURVEY] ${visibleComets.length} comets visible on ${exif.timestamp}: ${visibleComets.map(c => c.name).join(', ')}`, 'info');
+            addLog(`[COMET SURVEY] ${visibleComets.length} comets visible on ${exif.timestamp} (via COBS Planner): ${visibleComets.map(c => `${c.name}${c.magnitude ? ` [mag ${c.magnitude.toFixed(1)}]` : ''}`).join(', ')}`, 'info');
 
             for (const comet of visibleComets.slice(0, 8)) {
               try {
@@ -439,6 +439,11 @@ const App: React.FC = () => {
                 }
 
                 if (inFov) {
+                  // Store Planner API magnitude for FactSheet (more accurate than JPL for comets)
+                  if ((comet as any).magnitude && !(exif as any).plannerMagnitude) {
+                    (exif as any).plannerMagnitude = String((comet as any).magnitude);
+                    addLog(`[COMET SURVEY] Using COBS Planner magnitude: ${(comet as any).magnitude} for ${comet.name}`, 'info');
+                  }
                   // Promote to full comet analysis
                   if (!cometResult) {
                     addLog(`[COMET SURVEY] Fetching COBS orbital data for ${comet.name}...`, 'info');
@@ -868,8 +873,14 @@ const App: React.FC = () => {
       // This is the SINGLE SOURCE OF TRUTH for numeric values.
       // Gemini MUST quote these exactly. No LLM involvement in populating it.
       // ══════════════════════════════════════════════════════════════
+      // Magnitude priority: COBS observations > COBS Planner > JPL Horizons
       const cobsRecentMag = cometResult?.recent_observations?.[0]?.magnitude;
+      // Check if Planner API provided a magnitude for this comet
+      const plannerMag = (exif as any).plannerMagnitude;
       const jplMag = horizonsResult?.magnitude;
+      const bestMag = cobsRecentMag || plannerMag || jplMag || null;
+      const bestMagSource = cobsRecentMag ? 'COBS observed' : (plannerMag ? 'COBS Planner predicted' : (jplMag ? 'JPL predicted' : null));
+
       const factExpInfo = (await import('./services/satellites')).parseExposureInfo(exif.exposure);
 
       const factSheet: FactSheet = {
@@ -877,8 +888,8 @@ const App: React.FC = () => {
         target_type: cometResult ? 'comet' : (target ? 'deep_sky' : null),
         target_was_intentional: !!(target),
         distance_au: horizonsResult?.distance_au || null,
-        magnitude: cobsRecentMag || jplMag || null,
-        magnitude_source: cobsRecentMag ? 'COBS observed' : (jplMag ? 'JPL predicted' : null),
+        magnitude: bestMag,
+        magnitude_source: bestMagSource as any,
         ra: astrometryResult?.center_ra || null,
         dec: astrometryResult?.center_dec || null,
         constellation: astrometryResult?.constellation || null,
