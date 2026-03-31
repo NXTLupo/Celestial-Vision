@@ -431,7 +431,7 @@ export const analyzeCelestialImageStream = async (
       : "No close NEOs.";
       
     let cometContext = "No specific comet targeted.";
-    
+
     if (horizonsData) {
         cometContext = `
         HARD TELEMETRY (JPL Horizons):
@@ -440,8 +440,8 @@ export const analyzeCelestialImageStream = async (
         Dec: ${horizonsData.dec}
         Mag: ${horizonsData.magnitude}
         Distance: ${horizonsData.distance_au} AU
-        
-        ${calculatedTargetPixel 
+
+        ${calculatedTargetPixel
             ? `**GEOMETRIC CONFIRMATION**: Based on Plate Solving, this object is at Pixel coordinates X=${calculatedTargetPixel.x.toFixed(0)}, Y=${calculatedTargetPixel.y.toFixed(0)}. Report this location in your identifications.`
             : `Coordinates are provided. Use them.`}
         `;
@@ -453,6 +453,22 @@ export const analyzeCelestialImageStream = async (
         2. REPORT the RA/Dec you find.
         3. Do NOT guess pixel coordinates if you don't know where it is.
         `;
+    }
+
+    // If visible comets were found on this date but ephemeris couldn't be resolved
+    // (e.g., plate solve failed so FOV check was impossible), mention them as candidates
+    const visibleComets = (exifData as any).visibleComets as string[] | undefined;
+    if (visibleComets && visibleComets.length > 0 && !horizonsData) {
+        cometContext += `
+
+        COMETS VISIBLE ON THIS DATE (from COBS database):
+        ${visibleComets.join(', ')}
+
+        These comets were confirmed visible on the observation date. Without a plate solve,
+        their positions could not be checked against the field of view. If you can identify
+        a fuzzy/diffuse object in the image that matches a comet appearance, note it as a
+        CANDIDATE match with the comet name. Use Google Search to verify the comet's expected
+        position and brightness on ${exifData.timestamp}.`;
     }
 
     const forensicProtocol = `

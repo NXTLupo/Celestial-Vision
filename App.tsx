@@ -359,9 +359,14 @@ const App: React.FC = () => {
 
             for (const comet of visibleComets.slice(0, 8)) {
               try {
+                // Interstellar objects (1I, 2I, 3I) and short periodic designations
+                // need raw COMMAND format, not DES= prefix, in JPL Horizons
+                const needsRawCommand = /^\d+I$/i.test(comet.id) || /^\d+P$/i.test(comet.id);
                 const eph = await fetchHorizonsEphemeris(
                   comet.id, exif.timestamp,
-                  exif.location?.lat, exif.location?.lon
+                  exif.location?.lat, exif.location?.lon,
+                  undefined, // onLog
+                  needsRawCommand
                 );
                 if (!eph || !eph.ra || !eph.dec) continue;
 
@@ -414,7 +419,16 @@ const App: React.FC = () => {
             }
 
             if (!cometResult) {
-              addLog('[COMET SURVEY] No comets fall within this field of view on the observation date.', 'info');
+              // Even without ephemeris confirmation, pass the visible comet list
+              // to Gemini so it can mention them as candidates when plate solve fails.
+              // This prevents the case where 3I/ATLAS is visible but never mentioned.
+              if (!astrometryResult && visibleComets.length > 0) {
+                addLog(`[COMET SURVEY] No plate solve available. ${visibleComets.length} comets are visible on this date but cannot be FOV-checked: ${visibleComets.map(c => c.name).join(', ')}`, 'warning');
+                // Store visible comets list for Gemini to reference
+                (exif as any).visibleComets = visibleComets.map(c => c.name);
+              } else {
+                addLog('[COMET SURVEY] No comets fall within this field of view on the observation date.', 'info');
+              }
             }
           } else {
             addLog(`[COMET SURVEY] No bright comets in database for ${exif.timestamp}.`, 'info');
