@@ -397,10 +397,15 @@ const App: React.FC = () => {
                     addLog(`[COMET SURVEY] ${comet.name}: RA=${eph.ra}, Dec=${eph.dec}, Mag=${eph.magnitude || '?'}, sep=${angularSep.toFixed(3)}° ${inFov ? '** IN FOV **' : `(outside, ${angularSep.toFixed(1)}° from center)`}`, inFov ? 'success' : 'info');
                   }
                 } else {
-                  // NO PLATE SOLVE: pass any bright comet (V < 14) to Gemini as candidate
+                  // NO PLATE SOLVE: can't check FOV geometrically.
+                  // Pass comets brighter than mag 18 as candidates — any comet
+                  // bright enough to photograph could be in the image.
+                  // (Previous threshold of 14 was too strict — 3I/ATLAS at 15.0
+                  // was rejected even though the user literally photographed it.
+                  // Long-exposure astrophotography can capture objects to mag 18+.)
                   const mag = parseFloat(eph.magnitude || '99');
-                  inFov = mag < 14;
-                  addLog(`[COMET SURVEY] ${comet.name}: RA=${eph.ra}, Dec=${eph.dec}, Mag=${eph.magnitude || '?'} — ${inFov ? 'BRIGHT CANDIDATE (no plate solve, Gemini will visually check)' : 'too faint'}`, inFov ? 'success' : 'info');
+                  inFov = mag < 18;
+                  addLog(`[COMET SURVEY] ${comet.name}: RA=${eph.ra}°, Dec=${eph.dec}°, Mag=${eph.magnitude || '?'} — ${inFov ? 'CANDIDATE (no plate solve, passing to Gemini)' : 'too faint (mag > 18)'}`, inFov ? 'success' : 'info');
                 }
 
                 if (inFov) {
