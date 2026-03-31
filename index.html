@@ -6,22 +6,287 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Celestial Vision AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Override Tailwind's white/black to use CSS custom properties.
+      // In Stark mode, white↔black swap at the variable level,
+      // so ALL opacity modifiers (text-white/30, border-white/10, bg-black)
+      // automatically invert — zero component changes required.
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              white: 'rgb(var(--c-w) / <alpha-value>)',
+              black: 'rgb(var(--c-b) / <alpha-value>)',
+            }
+          }
+        }
+      }
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+        /* === HUD DESIGN SYSTEM === */
+
+        /* Color primitives — swapped by .stark class */
+        :root {
+            --c-w: 255 255 255;  /* "white" channel */
+            --c-b: 0 0 0;        /* "black" channel */
+        }
+        body.stark {
+            --c-w: 0 0 0;        /* white becomes black */
+            --c-b: 255 255 255;  /* black becomes white */
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #05070a;
-            color: #e2e8f0;
+            font-family: 'Space Mono', monospace;
+            background-color: rgb(var(--c-b));
+            color: rgb(var(--c-w));
+            font-size: 14px;
         }
-        .mono {
-            font-family: 'JetBrains Mono', monospace;
+
+        /* Perspective grid background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background-image:
+                linear-gradient(rgb(var(--c-w) / 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgb(var(--c-w) / 0.025) 1px, transparent 1px);
+            background-size: 48px 48px;
+            mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 30%, transparent 70%);
+            -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 30%, transparent 70%);
         }
+
+        /* ─── HUD FRAME: Double-border panel with corner cuts ─── */
+        .hud-frame {
+            position: relative;
+            border: 1px solid rgb(var(--c-w) / 0.12);
+            outline: 1px solid rgb(var(--c-w) / 0.04);
+            outline-offset: 3px;
+        }
+        /* Corner bracket decorations (pseudo-elements on the frame) */
+        .hud-frame::before {
+            content: '';
+            position: absolute;
+            top: -1px; left: -1px; right: -1px; bottom: -1px;
+            pointer-events: none;
+            border: 0 solid rgb(var(--c-w) / 0.25);
+            border-top-width: 1px;
+            border-left-width: 1px;
+            clip-path: polygon(0 0, 20px 0, 20px 1px, 1px 1px, 1px 20px, 0 20px);
+        }
+        .hud-frame::after {
+            content: '';
+            position: absolute;
+            top: -1px; left: -1px; right: -1px; bottom: -1px;
+            pointer-events: none;
+            border: 0 solid rgb(var(--c-w) / 0.25);
+            border-bottom-width: 1px;
+            border-right-width: 1px;
+            clip-path: polygon(100% 100%, calc(100% - 20px) 100%, calc(100% - 20px) calc(100% - 1px), calc(100% - 1px) calc(100% - 1px), calc(100% - 1px) calc(100% - 20px), 100% calc(100% - 20px));
+        }
+
+        /* ─── HUD HEADER BAR: Hatched section title bar ─── */
+        .hud-header-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 12px;
+            border: 1px solid rgb(var(--c-w) / 0.15);
+            background:
+                repeating-linear-gradient(
+                    -45deg,
+                    transparent,
+                    transparent 3px,
+                    rgb(var(--c-w) / 0.03) 3px,
+                    rgb(var(--c-w) / 0.03) 4px
+                );
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: rgb(var(--c-w) / 0.6);
+            margin-bottom: 0;
+        }
+        .hud-header-bar i {
+            font-size: 9px;
+            opacity: 0.4;
+        }
+
+        /* ─── TICK MARKS along edges (applied via background-image) ─── */
+        .hud-ticks-x {
+            background-image: repeating-linear-gradient(
+                90deg,
+                rgb(var(--c-w) / 0.06) 0px,
+                rgb(var(--c-w) / 0.06) 1px,
+                transparent 1px,
+                transparent 24px
+            );
+            background-size: 100% 4px;
+            background-repeat: no-repeat;
+            background-position: bottom;
+        }
+        .hud-ticks-y {
+            background-image: repeating-linear-gradient(
+                0deg,
+                rgb(var(--c-w) / 0.06) 0px,
+                rgb(var(--c-w) / 0.06) 1px,
+                transparent 1px,
+                transparent 24px
+            );
+            background-size: 4px 100%;
+            background-repeat: no-repeat;
+            background-position: right;
+        }
+
+        /* ─── DIAGONAL HATCH fill (for active states, selections) ─── */
+        .hud-hatch {
+            background-image: repeating-linear-gradient(
+                -45deg,
+                transparent,
+                transparent 3px,
+                rgb(var(--c-w) / 0.04) 3px,
+                rgb(var(--c-w) / 0.04) 4px
+            );
+        }
+        .hud-hatch-strong {
+            background-image: repeating-linear-gradient(
+                -45deg,
+                transparent,
+                transparent 3px,
+                rgb(var(--c-w) / 0.08) 3px,
+                rgb(var(--c-w) / 0.08) 4px
+            );
+        }
+
+        /* HUD button — geometric, no rounding */
+        .hud-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: 1px solid rgb(var(--c-w) / 0.3);
+            background: transparent;
+            color: rgb(var(--c-w));
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .hud-btn:hover {
+            background: repeating-linear-gradient(
+                45deg, transparent, transparent 3px,
+                rgb(var(--c-w) / 0.06) 3px, rgb(var(--c-w) / 0.06) 6px
+            );
+            border-color: rgb(var(--c-w) / 0.6);
+        }
+        .hud-btn:active { background: rgb(var(--c-w) / 0.1); }
+        .hud-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .hud-btn:disabled:hover { background: transparent; border-color: rgb(var(--c-w) / 0.3); }
+
+        /* Bracket-framed section headers */
+        .hud-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: rgb(var(--c-w) / 0.5);
+        }
+        .hud-title {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+        .hud-title::before { content: '[_ '; opacity: 0.3; }
+        .hud-title::after { content: ' _]'; opacity: 0.3; }
+
+        /* Greeble micro-copy decoration */
+        .greeble { position: relative; }
+        .greeble::before {
+            content: attr(data-gl);
+            position: absolute;
+            bottom: 4px;
+            left: 12px;
+            font-size: 7px;
+            letter-spacing: 0.15em;
+            color: rgb(var(--c-w) / 0.08);
+            font-family: 'Space Mono', monospace;
+            pointer-events: none;
+        }
+        .greeble::after {
+            content: attr(data-gr);
+            position: absolute;
+            bottom: 4px;
+            right: 12px;
+            font-size: 7px;
+            letter-spacing: 0.15em;
+            color: rgb(var(--c-w) / 0.08);
+            font-family: 'Space Mono', monospace;
+            pointer-events: none;
+        }
+
+        /* Scanning animation */
         @keyframes scan {
-          0% { top: 0% }
-          50% { top: 100% }
-          100% { top: 0% }
+            0% { top: 0% }
+            50% { top: 100% }
+            100% { top: 0% }
+        }
+        @keyframes hud-pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+        @keyframes marching-ants {
+            0% { stroke-dashoffset: 0; }
+            100% { stroke-dashoffset: 16; }
+        }
+
+        /* Global scrollbar */
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgb(var(--c-w) / 0.15); }
+        ::-webkit-scrollbar-thumb:hover { background: rgb(var(--c-w) / 0.3); }
+
+        /* Input/textarea base */
+        input, textarea, select {
+            font-family: 'Space Mono', monospace;
+            border-radius: 0 !important;
+        }
+
+        /* Override any lingering rounded classes */
+        .rounded-none-force { border-radius: 0 !important; }
+
+        /* @keyframes for reticle spins */
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        /* ===== STARK (LIGHT) MODE =====
+           Colors swap via CSS custom properties (--c-w, --c-b).
+           Tailwind's white/black are mapped to these variables,
+           so all opacity modifiers auto-invert. No filters needed. */
+
+        /* Hide elements that break stark aesthetic */
+        body.stark .stark-hide { opacity: 0 !important; }
+
+        /* Stark scrollbar */
+        body.stark ::-webkit-scrollbar-thumb { background: rgb(var(--c-w) / 0.15); }
+        body.stark ::-webkit-scrollbar-thumb:hover { background: rgb(var(--c-w) / 0.3); }
+
+        /* Stark input color scheme */
+        body.stark input,
+        body.stark textarea,
+        body.stark select {
+            color-scheme: light;
         }
     </style>
 <script type="importmap">
@@ -37,5 +302,6 @@
 </head>
 <body>
     <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>

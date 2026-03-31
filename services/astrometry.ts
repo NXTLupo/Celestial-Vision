@@ -6,20 +6,12 @@ import { PlateSolveMetadata, AstrometryAnnotation } from "../types";
  * Using a CORS Proxy to bypass browser security restrictions.
  */
 
-const ORIGIN_ROOT = "https://nova.astrometry.net/api";
-const PROXY_PREFIX = "https://corsproxy.io/?";
-
 const getProxiedUrl = (endpoint: string) => {
-  // Add cache buster to prevent proxy caching
-  const fullUrl = `${ORIGIN_ROOT}/${endpoint}?t=${Date.now()}`;
-  return `${PROXY_PREFIX}${encodeURIComponent(fullUrl)}`;
+  return `/proxy/astrometry/api/${endpoint}`;
 };
 
 const getAnnotatedImageUrl = (jobId: number) => {
-  // Use 'annotated_display' instead of 'annotated_full'.
-  // 'annotated_full' often results in broken images or timeouts due to size.
-  // 'annotated_display' is optimized for web viewing.
-  return `https://nova.astrometry.net/annotated_display/${jobId}`;
+  return `/proxy/astrometry/annotated_display/${jobId}`;
 };
 
 const ASTROMETRY_API_KEY = "REDACTED_ASTROMETRY_KEY";
@@ -144,18 +136,39 @@ export const solveAstrometry = async (
       session,
       allow_commercial_use: 'd',
       allow_modifications: 'd',
-      publicly_visible: 'y'
+      publicly_visible: 'y',
     }));
     formData.append('file', blob, 'image.jpg');
 
-    const uploadRes = await fetchWithTimeout(getProxiedUrl('upload'), {
-      method: 'POST',
-      body: formData
-    }, 90000); 
-    
-    const uploadData = await safeJsonParse(uploadRes);
-    if (uploadData.status !== 'success') {
-      onLog(`[ASTROMETRY] Upload rejected: ${uploadData.errormessage}`);
+    // Retry upload up to 3 times on server errors (Astrometry.net 500s are transient)
+    let uploadData: any = null;
+    for (let uploadAttempt = 0; uploadAttempt < 3; uploadAttempt++) {
+      try {
+        const uploadRes = await fetchWithTimeout(getProxiedUrl('upload'), {
+          method: 'POST',
+          body: formData
+        }, 90000);
+
+        if (uploadRes.status === 500 || uploadRes.status === 502 || uploadRes.status === 503) {
+          onLog(`[ASTROMETRY] Server error (${uploadRes.status}), retrying... (${uploadAttempt + 1}/3)`);
+          await new Promise(r => setTimeout(r, 3000 * (uploadAttempt + 1)));
+          continue;
+        }
+
+        uploadData = await safeJsonParse(uploadRes);
+        break;
+      } catch (e: any) {
+        if (uploadAttempt < 2) {
+          onLog(`[ASTROMETRY] Upload failed (${e.message}), retrying... (${uploadAttempt + 1}/3)`);
+          await new Promise(r => setTimeout(r, 3000 * (uploadAttempt + 1)));
+        } else {
+          throw e;
+        }
+      }
+    }
+
+    if (!uploadData || uploadData.status !== 'success') {
+      onLog(`[ASTROMETRY] Upload rejected: ${uploadData?.errormessage || 'Server unavailable after 3 attempts'}`);
       return null;
     }
     const subId = uploadData.subid;
