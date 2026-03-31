@@ -352,30 +352,50 @@ const estimateApparentMagnitude = (
   return M_std + rangeFactor;
 };
 
+import { ImageExposureInfo } from '../types';
+
 /**
- * Parse exposure string from pre-scan (e.g. "24min", "120s", "300x30s") to seconds.
+ * Parse exposure string into structured info distinguishing stacked vs single.
+ *
+ * CRITICAL: For stacked images ("300x30s"), a satellite can only leave a trail
+ * in a SINGLE sub-frame (30s), not across the full stack (9000s). The stacking
+ * process rejects transient features. Use subExposureSec for satellite FOV
+ * crossing calculations, not totalExposureSec.
  */
-const parseExposureToSeconds = (exposure?: string | null): number => {
-  if (!exposure) return 60; // default 1 minute if unknown
+export const parseExposureInfo = (exposure?: string | null): ImageExposureInfo => {
+  if (!exposure) return { isStacked: false, subExposureSec: 60, totalExposureSec: 60, frameCount: 1, rawString: 'unknown' };
   const lower = exposure.toLowerCase().trim();
+
+  // "300x30s" or "52x20s" (stacked frames)
+  const stackMatch = lower.match(/([\d]+)\s*x\s*([\d.]+)\s*s/);
+  if (stackMatch) {
+    const frames = parseInt(stackMatch[1]);
+    const subSec = parseFloat(stackMatch[2]);
+    return { isStacked: true, subExposureSec: subSec, totalExposureSec: frames * subSec, frameCount: frames, rawString: exposure };
+  }
 
   // "24min" or "24 min"
   const minMatch = lower.match(/([\d.]+)\s*min/);
-  if (minMatch) return parseFloat(minMatch[1]) * 60;
+  if (minMatch) {
+    const sec = parseFloat(minMatch[1]) * 60;
+    return { isStacked: false, subExposureSec: sec, totalExposureSec: sec, frameCount: 1, rawString: exposure };
+  }
 
   // "120s" or "120 sec"
   const secMatch = lower.match(/([\d.]+)\s*s/);
-  if (secMatch) return parseFloat(secMatch[1]);
-
-  // "300x30s" (stacked frames — total exposure is product)
-  const stackMatch = lower.match(/([\d]+)\s*x\s*([\d.]+)\s*s/);
-  if (stackMatch) return parseInt(stackMatch[1]) * parseFloat(stackMatch[2]);
+  if (secMatch) {
+    const sec = parseFloat(secMatch[1]);
+    return { isStacked: false, subExposureSec: sec, totalExposureSec: sec, frameCount: 1, rawString: exposure };
+  }
 
   // "2h" or "2 hours"
   const hourMatch = lower.match(/([\d.]+)\s*h/);
-  if (hourMatch) return parseFloat(hourMatch[1]) * 3600;
+  if (hourMatch) {
+    const sec = parseFloat(hourMatch[1]) * 3600;
+    return { isStacked: false, subExposureSec: sec, totalExposureSec: sec, frameCount: 1, rawString: exposure };
+  }
 
-  return 60;
+  return { isStacked: false, subExposureSec: 60, totalExposureSec: 60, frameCount: 1, rawString: exposure };
 };
 
 export interface BroadCandidate {
@@ -436,7 +456,12 @@ export const identifySatellitesInField = async (
   }
 
   const tles = parseTLEText(tleText);
-  const exposureSec = parseExposureToSeconds(exposureStr);
+  const exposureInfo = parseExposureInfo(exposureStr);
+  // CRITICAL: Use sub-frame exposure for satellite crossing calculations.
+  // For stacked images ("300x30s"), a satellite trail only appears in ONE
+  // sub-frame (30s), not across the full stack (9000s). The stacking process
+  // rejects transient features during alignment.
+  const exposureSec = exposureInfo.subExposureSec;
   const halfExposure = exposureSec / 2;
 
   // ═══════════════════════════════════════════════════════
@@ -833,7 +858,9 @@ export const matchStreaksToSatellites = (
       }
 
       // Combined score: angle 60%, position 40%
-      const score = angleScore * 0.6 + posScore * 0.4;
+      // BUT: require minimum angle agreement — a satellite moving at the
+      // wrong angle cannot be the source of this streak regardless of position.
+      const score = angleScore >= 0.5 ? (angleScore * 0.6 + posScore * 0.4) : 0;
 
       if (score > bestScore) {
         bestScore = score;
@@ -849,14 +876,14 @@ export const matchStreaksToSatellites = (
   satelliteMatches.sort((a, b) => {
     const aScore = a.streakMatchScore || 0;
     const bScore = b.streakMatchScore || 0;
-    if (aScore > 0.3 || bScore > 0.3) {
+    if (aScore > 0.5 || bScore > 0.5) {
       return bScore - aScore; // Best match first
     }
     return a.estMagnitude - b.estMagnitude; // Brightest first for unmatched
   });
 
   if (onLog) {
-    const matched = satelliteMatches.filter(m => (m.streakMatchScore || 0) > 0.3);
+    const matched = satelliteMatches.filter(m => (m.streakMatchScore || 0) > 0.5);
     if (matched.length > 0) {
       onLog(`[SAT MATCH] Matched ${matched.length} satellite(s) to detected streaks:`);
       matched.forEach(m => {

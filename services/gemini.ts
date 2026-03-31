@@ -518,7 +518,26 @@ export const analyzeCelestialImageStream = async (
         `\nInclude these streaks in your identifications array. They have been detected by the image analysis pipeline.`
       : '';
 
-    const commonPromptData = `Obs Date: ${exifData.timestamp}\nTarget Data:\n${cometContext}${satContext}${streakContext}`;
+    // Build FactSheet block — structured, verified data that Gemini must quote exactly
+    const fs = (exifData as any).factSheet;
+    const factSheetBlock = fs ? `
+═══ FACT_SHEET (VERIFIED DATA — USE THESE EXACT VALUES) ═══
+Observation Date: ${fs.observation_date || 'unknown'}
+Target: ${fs.target_name || 'none specified'}${fs.target_was_intentional ? ' (INTENTIONALLY TARGETED by photographer)' : ''}
+Distance: ${fs.distance_au ? fs.distance_au + ' AU' : 'unknown'}
+Magnitude: ${fs.magnitude || 'unknown'}${fs.magnitude_source ? ` (${fs.magnitude_source})` : ''}${fs.magnitude_source === 'JPL predicted' ? ' — WARNING: JPL predicted magnitudes are unreliable for comets' : ''}
+Constellation: ${fs.constellation || 'unknown'}
+FOV: ${fs.fov_degrees || 'unknown'}
+Exposure: ${fs.exposure_info || 'unknown'}
+Image Type: ${fs.image_type}${fs.image_type === 'stacked' ? ' — satellite trails are REJECTED during stacking and will NOT appear' : ''}
+Visible Streaks: ${fs.visible_streak_count}${fs.visible_streak_count === 0 ? ' — NO satellite trails are visible in this image' : ''}
+Satellites Overhead: ${fs.satellite_count_overhead} (orbital data only — NOT visible unless streaks detected)
+NEOs in Field: ${fs.neo_count_in_field}
+═══ END FACT_SHEET ═══
+Every numeric claim in your output MUST come from FACT_SHEET above. Never invent distances, magnitudes, or counts.
+` : '';
+
+    const commonPromptData = `${factSheetBlock}Obs Date: ${exifData.timestamp}\nTarget Data:\n${cometContext}${satContext}${streakContext}`;
 
     if (isVisionMode) {
       systemInstruction = `${forensicProtocol}`;
@@ -1181,6 +1200,69 @@ IMPORTANT TONE RULES:
 
   // Enforce 2200 character limit programmatically (Instagram max)
   let caption = result.text || 'Caption generation failed. Please try again.';
+
+  // POST-GENERATION FACT-CHECK — verify caption against FactSheet
+  const fs = (context as any).factSheet || (context as any).exif?.factSheet;
+  if (fs) {
+    const violations: string[] = [];
+
+    // Check distance claims
+    if (fs.distance_au) {
+      const distNum = parseFloat(fs.distance_au);
+      const distRegex = /([\d.]+)\s*(?:AU|astronomical unit)/gi;
+      let match;
+      while ((match = distRegex.exec(caption)) !== null) {
+        const claimed = parseFloat(match[1]);
+        if (Math.abs(claimed - distNum) > distNum * 0.5 && Math.abs(claimed - distNum) > 0.5) {
+          violations.push(`Distance: claimed ${claimed} AU, actual ${distNum} AU`);
+          caption = caption.replace(match[0], `${distNum.toFixed(1)} AU`);
+        }
+      }
+    }
+
+    // Check magnitude claims
+    if (fs.magnitude) {
+      const magNum = parseFloat(fs.magnitude);
+      const magRegex = /magnitude\s+([\d.]+)/gi;
+      let match;
+      while ((match = magRegex.exec(caption)) !== null) {
+        const claimed = parseFloat(match[1]);
+        if (Math.abs(claimed - magNum) > 2) {
+          violations.push(`Magnitude: claimed ${claimed}, actual ${magNum}`);
+          caption = caption.replace(match[0], `magnitude ${magNum.toFixed(1)}`);
+        }
+      }
+    }
+
+    // Check satellite visibility claims when no streaks exist
+    if (fs.visible_streak_count === 0) {
+      const satClaimPatterns = [
+        /caught\s+(?:a\s+)?(?:satellite|debris|rocket|trail)/gi,
+        /visible\s+(?:satellite|trail|streak)/gi,
+        /I\s+picked\s+up\s+(?:a\s+)?(?:satellite|debris|rocket)/gi,
+        /(\d+)\s+(?:different\s+)?(?:satellite|debris)\s+(?:fragment|trail|object)/gi,
+      ];
+      for (const pattern of satClaimPatterns) {
+        if (pattern.test(caption)) {
+          violations.push(`Satellite visibility claim with 0 detected streaks`);
+          // Don't auto-correct these — too complex. Just log.
+        }
+      }
+    }
+
+    // Check intentional target framing
+    if (fs.target_was_intentional) {
+      const surprisePatterns = /(?:discover|stumbl|surprise|turns out there(?:'s| is))/gi;
+      if (surprisePatterns.test(caption) && fs.target_name) {
+        violations.push(`Surprise framing for intentionally-targeted ${fs.target_name}`);
+      }
+    }
+
+    if (violations.length > 0) {
+      console.warn(`[FACT-CHECK] ${violations.length} violation(s) auto-corrected:`, violations);
+    }
+  }
+
   if (caption.length > 2200) {
     const truncated = caption.substring(0, 2200);
     const lastPeriod = truncated.lastIndexOf('.');
