@@ -1,16 +1,15 @@
 
 import { HorizonsData } from "../types";
 
-// CORS Proxy is needed for browser-based fetch to JPL
-const PROXY_URL = "https://corsproxy.io/?";
-const HORIZONS_API_URL = "https://ssd.jpl.nasa.gov/api/horizons.api";
+const HORIZONS_API_URL = "/proxy/horizons/api/horizons.api";
 
 export const fetchHorizonsEphemeris = async (
-  target: string, 
+  target: string,
   timestamp: string,
   lat?: number | null,
   lon?: number | null,
-  onLog?: (msg: string) => void
+  onLog?: (msg: string) => void,
+  useRawCommand?: boolean
 ): Promise<HorizonsData | null> => {
   if (!target) return null;
 
@@ -46,7 +45,7 @@ export const fetchHorizonsEphemeris = async (
 
     // Sanitize Target for COMMAND
     // Remove 'CAP' strictness to allow flexible matching for things like '3I'
-    const command = `'DES=${target}'`; 
+    const command = useRawCommand ? `'${target}'` : `'DES=${target}'`;
 
     // Quantities: 1(RA/Dec), 9(Mag), 20(Observer Range/RangeRate)
     const quantities = "'1,9,20'";
@@ -67,7 +66,7 @@ export const fetchHorizonsEphemeris = async (
 
     // Manually construct URL to ensure proper encoding of nested quotes
     const query = params.toString() + siteCoord;
-    const url = `${PROXY_URL}${encodeURIComponent(`${HORIZONS_API_URL}?${query}`)}`;
+    const url = `${HORIZONS_API_URL}?${query}`;
 
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

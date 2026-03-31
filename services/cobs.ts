@@ -1,9 +1,8 @@
 
 import { CometData, CometObservation } from "../types";
 
-const COBS_API_ROOT = "https://cobs.si/api/comet.api";
-const COBS_OBS_LIST_ROOT = "https://cobs.si/api/obs_list.api";
-const PROXY_PREFIX = "https://corsproxy.io/?";
+const COBS_API_ROOT = "/proxy/cobs/api/comet.api";
+const COBS_OBS_LIST_ROOT = "/proxy/cobs/api/obs_list.api";
 
 const formatDate = (date: Date): string => {
   return date.toISOString().slice(0, 10); // YYYY-MM-DD
@@ -39,7 +38,7 @@ const OFFLINE_PREDICTION_DB = [
   { id: "210P", name: "210P/Christensen", start: "2025-12-01", end: "2026-02-01" },
 
   // --- 2025 PREDICTIONS ---
-  { id: "3I", name: "3I/ATLAS (Interstellar)", start: "2025-08-01", end: "2025-12-31" },
+  { id: "3I", name: "3I/ATLAS (Interstellar)", start: "2025-08-01", end: "2026-06-30" },
   { id: "C/2025 R2", name: "C/2025 R2 (SWAN)", start: "2025-09-01", end: "2025-11-30" },
   { id: "C/2025 A6", name: "C/2025 A6 (Lemmon)", start: "2025-09-01", end: "2025-11-30" },
   { id: "C/2025 F2", name: "C/2025 F2 (SWAN)", start: "2025-03-01", end: "2025-05-30" },
@@ -118,7 +117,7 @@ const fetchLiveBrightComets = async (targetDate: Date): Promise<{ id: string, na
             limit: '150'
         });
 
-        const url = `${PROXY_PREFIX}${encodeURIComponent(`${COBS_OBS_LIST_ROOT}?${params.toString()}`)}`;
+        const url = `${COBS_OBS_LIST_ROOT}?${params.toString()}`;
         const res = await fetch(url);
         
         if (!res.ok) return [];
@@ -209,7 +208,7 @@ export const fetchCometData = async (
       'alt-des': 'true'
     });
     
-    const url = `${PROXY_PREFIX}${encodeURIComponent(`${COBS_API_ROOT}?${params.toString()}`)}`;
+    const url = `${COBS_API_ROOT}?${params.toString()}`;
     const res = await fetch(url);
     
     if (res.ok) {
@@ -259,7 +258,7 @@ export const fetchCometData = async (
             exclude_not_accurate: 'false'
         });
 
-        const obsUrl = `${PROXY_PREFIX}${encodeURIComponent(`${COBS_OBS_LIST_ROOT}?${obsParams.toString()}`)}`;
+        const obsUrl = `${COBS_OBS_LIST_ROOT}?${obsParams.toString()}`;
         if (onLog) onLog(`[COBS] Retrieving visual reports from ${formatDate(startDate)}...`);
         
         const obsRes = await fetch(obsUrl);

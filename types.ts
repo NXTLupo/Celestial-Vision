@@ -7,6 +7,9 @@ export enum ObjectType {
   COMET = 'comet',
   METEOR = 'meteor',
   SATELLITE = 'satellite',
+  SATELLITE_TRAIL = 'satellite_trail',
+  SPACE_DEBRIS = 'space_debris',
+  STREAK = 'streak',
   UNKNOWN = 'unknown'
 }
 
@@ -22,7 +25,23 @@ export interface Identification {
   evidence: string[];
   recommended_followup: string;
   pixel_coords?: { x: number; y: number };
-  reference_image_url?: string; // New field for web photos
+  reference_image_url?: string;
+  verification_status?: 'wcs_confirmed' | 'ephemeris_only' | 'vision_only' | 'candidate';
+  resolution_audit?: {
+    databases_checked: string[];
+    resolved: boolean;
+    original_type?: string;
+  };
+  // Streak/debris characterization
+  streak_info?: {
+    length_pixels?: number;      // Streak length in pixels
+    position_angle_deg?: number; // Angle of streak on image
+    snr_estimate?: string;       // Estimated signal-to-noise ratio
+    angular_velocity?: string;   // Estimated angular velocity
+    orbit_regime?: 'LEO' | 'MEO' | 'GEO' | 'HEO' | 'unknown'; // Estimated orbit
+    brightness_variation?: string; // Tumbling/rotation signature
+    catalog_match?: string;      // Matched TLE/catalog object if any
+  };
 }
 
 export interface AstrometryAnnotation {
@@ -65,6 +84,12 @@ export interface NeoObject {
   v_rel: string;      // Relative velocity (km/s)
   h: string;          // Absolute magnitude
   body?: string;      // Close approach body (usually Earth)
+  ra?: string;        // RA in degrees (from Horizons ephemeris)
+  dec?: string;       // Dec in degrees (from Horizons ephemeris)
+  magnitude_v?: string; // Visual magnitude at observation time
+  in_field?: boolean; // Whether this NEO falls within the user's plate-solved FOV
+  pixel_x?: number;   // Pixel X position in user image (if in_field)
+  pixel_y?: number;   // Pixel Y position in user image (if in_field)
 }
 
 export interface CometObservation {
@@ -113,6 +138,20 @@ export interface HorizonsData {
   constellation?: string;
 }
 
+export interface SatelliteMatch {
+  name: string;
+  noradId: string;
+  intlDesignator: string;
+  ra: number;
+  dec: number;
+  altitude: number;
+  velocity: number;
+  angularSep: number;
+  magnitude?: string;
+  pixelX?: number;
+  pixelY?: number;
+}
+
 export interface IdentificationResult {
   identifications: Identification[];
   summary: string;
@@ -121,8 +160,9 @@ export interface IdentificationResult {
   neos?: NeoObject[];
   comet?: CometData | null;
   horizons?: HorizonsData | null;
+  satellites?: SatelliteMatch[];
   exif?: any;
-  generated_annotation_image?: string; // New field for Nano Banana Pro output
+  generated_annotation_image?: string;
 }
 
 export interface ThoughtLog {
