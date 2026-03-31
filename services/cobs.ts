@@ -123,12 +123,19 @@ const fetchLiveBrightComets = async (
             sun_alt: '-12',    // Nautical twilight
         };
 
-        // Add observer location if available
+        // Planner API requires lat/long for visibility calculations.
+        // Magnitude and RA/Dec are location-independent, but the API needs a location.
+        // If user provided none, use Greenwich as a fallback for magnitude queries only.
+        // The pipeline should warn the user to provide location for accurate results.
         if (lat != null && lon != null) {
             params.lat = lat.toFixed(4);
             params.long = lon.toFixed(4);
-            params.alt = '0';
+        } else {
+            // Fallback — magnitude is still accurate, visibility/altitude may not be
+            params.lat = '51.4769';
+            params.long = '-0.0005';
         }
+        params.alt = '0';
 
         const url = `${COBS_PLANNER_ROOT}?${new URLSearchParams(params).toString()}`;
         const res = await fetch(url);
