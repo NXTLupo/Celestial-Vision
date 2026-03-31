@@ -1135,14 +1135,27 @@ Databases and Agencies Used in This Analysis:
 ${archivalContext ? `- APPLAUSE (Archives of Photographic PLates for Astronomical USE, Leibniz Institute for Astrophysics Potsdam / AIP, Germany): historical photographic glass plates from European observatories (1890s-1990s)` : ''}
 ${archivalContext}
 
-${(context as any).horizons ? `
-TARGET EPHEMERIS (from JPL Horizons - THESE ARE THE AUTHORITATIVE NUMBERS):
+${(context as any).horizons ? (() => {
+  // Prefer COBS observed magnitude over JPL predicted magnitude.
+  // JPL uses a simple H+G model that is notoriously inaccurate for comets.
+  // COBS has actual visual observations from real observers.
+  const cobs = (context as any).comet;
+  const cobsObs = cobs?.recent_observations;
+  const cobsMag = cobsObs && cobsObs.length > 0 ? cobsObs[0].magnitude : null;
+  const jplMag = (context as any).horizons.magnitude;
+  const bestMag = cobsMag || jplMag;
+  const magSource = cobsMag ? `${cobsMag} (COBS observed — more accurate than JPL prediction of ${jplMag})` : `${jplMag} (JPL predicted — may be inaccurate for comets)`;
+
+  return `
+TARGET EPHEMERIS (AUTHORITATIVE - USE THESE EXACT NUMBERS):
   Target: ${(context as any).horizons.id}
   RA: ${(context as any).horizons.ra}
   Dec: ${(context as any).horizons.dec}
-  Magnitude: ${(context as any).horizons.magnitude}
+  Magnitude: ${magSource}
   Distance: ${(context as any).horizons.distance_au} AU
-  USE THESE EXACT NUMBERS. Do NOT make up different values.` : ''}
+  IMPORTANT: Use the distance value above EXACTLY (e.g., if it says 1.97, write "about 2 AU"). Do NOT invent a different distance.
+  IMPORTANT: For comets, JPL predicted magnitudes are often WRONG. If COBS observed magnitude is available, use that. If the comet is clearly bright in the image, do not cite a faint magnitude that contradicts visual evidence.`;
+})() : ''}
 
 Summary: ${context.summary}
 
