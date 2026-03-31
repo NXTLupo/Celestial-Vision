@@ -433,12 +433,19 @@ export const analyzeCelestialImageStream = async (
     let cometContext = "No specific comet targeted.";
 
     if (horizonsData) {
+        // Use FactSheet magnitude (COBS preferred) if available, otherwise JPL
+        const fs = (exifData as any).factSheet;
+        const bestMag = fs?.magnitude || horizonsData.magnitude;
+        const magNote = fs?.magnitude_source === 'COBS observed'
+          ? `${bestMag} (COBS observed — USE THIS, not JPL prediction of ${horizonsData.magnitude})`
+          : `${horizonsData.magnitude} (JPL predicted — may be significantly wrong for active comets. If comet appears bright in image, magnitude is likely 3-5 magnitudes brighter than this prediction.)`;
+
         cometContext = `
-        HARD TELEMETRY (JPL Horizons):
+        HARD TELEMETRY (JPL Horizons + COBS):
         Target: ${horizonsData.id}
         RA: ${horizonsData.ra}
         Dec: ${horizonsData.dec}
-        Mag: ${horizonsData.magnitude}
+        Magnitude: ${magNote}
         Distance: ${horizonsData.distance_au} AU
 
         ${calculatedTargetPixel

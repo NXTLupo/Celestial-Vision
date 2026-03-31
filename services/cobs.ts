@@ -3,6 +3,7 @@ import { CometData, CometObservation } from "../types";
 
 const COBS_API_ROOT = "/proxy/cobs/api/comet.api";
 const COBS_OBS_LIST_ROOT = "/proxy/cobs/api/obs_list.api";
+const COBS_PLANNER_ROOT = "/proxy/cobs/api/planner.api";
 
 const formatDate = (date: Date): string => {
   return date.toISOString().slice(0, 10); // YYYY-MM-DD
@@ -100,63 +101,62 @@ const normalizeDesignation = (input: string): string | null => {
 };
 
 /**
- * Attempts to fetch currently observed comets from the live COBS database.
+ * Fetch visible comets using the COBS Planner API.
+ *
+ * The Planner API is purpose-built for this — given a date (and optionally
+ * location), it returns all comets visible with their predicted magnitudes,
+ * RA/Dec positions, constellation, rise/set times, and motion.
+ *
+ * This replaces the old approach of querying the observation list and
+ * aggregating magnitudes manually.
  */
-const fetchLiveBrightComets = async (targetDate: Date): Promise<{ id: string, name: string }[]> => {
+const fetchLiveBrightComets = async (
+  targetDate: Date,
+  lat?: number | null,
+  lon?: number | null,
+): Promise<{ id: string, name: string, magnitude?: number, ra?: string, dec?: string }[]> => {
     try {
-        const startDate = new Date(targetDate);
-        startDate.setDate(startDate.getDate() - 10);
-        const endDate = new Date(targetDate);
-        endDate.setDate(endDate.getDate() + 10);
+        const params: Record<string, string> = {
+            date: formatDate(targetDate),
+            lim_mag: '18',     // Include comets up to mag 18 (astrophotography limit)
+            min_alt: '0',      // Include all altitudes (we'll check FOV separately)
+            sun_alt: '-12',    // Nautical twilight
+        };
 
-        const params = new URLSearchParams({
-            format: 'json',
-            from_date: formatDate(startDate),
-            to_date: formatDate(endDate),
-            obs_type: 'visual', // Focus on visual magnitude
-            limit: '150'
-        });
+        // Add observer location if available
+        if (lat != null && lon != null) {
+            params.lat = lat.toFixed(4);
+            params.long = lon.toFixed(4);
+            params.alt = '0';
+        }
 
-        const url = `${COBS_OBS_LIST_ROOT}?${params.toString()}`;
+        const url = `${COBS_PLANNER_ROOT}?${new URLSearchParams(params).toString()}`;
         const res = await fetch(url);
-        
-        if (!res.ok) return [];
+
+        if (!res.ok) {
+            console.warn(`COBS Planner API returned ${res.status}`);
+            return [];
+        }
 
         const data = await res.json();
-        if (!data.object || !Array.isArray(data.object)) return [];
+        const cometList = data.comet_list;
+        if (!cometList || !Array.isArray(cometList)) return [];
 
-        // Aggregate observations by comet
-        const cometMap = new Map<string, { name: string, designation: string, minMag: number }>();
-
-        data.object.forEach((obs: any) => {
-            if (!obs.object) return;
-            const des = obs.object.designation;
-            const name = obs.object.name || des;
-            const mag = parseFloat(obs.magnitude);
-
-            // Filter for brightness (Visual Mag < 14)
-            if (isNaN(mag) || mag > 14) return;
-
-            if (!cometMap.has(des)) {
-                cometMap.set(des, { name, designation: des, minMag: mag });
-            } else {
-                const existing = cometMap.get(des)!;
-                if (mag < existing.minMag) existing.minMag = mag;
-            }
-        });
-
-        // Convert to array and sort by brightness (ascending magnitude)
-        const sorted = Array.from(cometMap.values())
-            .sort((a, b) => a.minMag - b.minMag)
-            .slice(0, 8) // Top 8 brightest
-            .map(c => ({
-                id: c.designation,
-                name: `${c.designation} (${c.name}) [Mag ${c.minMag}]`
+        // Sort by brightness and return
+        const sorted = [...cometList]
+            .sort((a: any, b: any) => (a.magnitude || 99) - (b.magnitude || 99))
+            .slice(0, 15) // Top 15
+            .map((c: any) => ({
+                id: c.mpc_name || c.comet_name,
+                name: c.comet_fullname || c.comet_name,
+                magnitude: c.magnitude ? parseFloat(c.magnitude) : undefined,
+                ra: c.best_ra,
+                dec: c.best_dec,
             }));
 
         return sorted;
     } catch (e) {
-        console.warn("Live comet fetch failed:", e);
+        console.warn("COBS Planner fetch failed:", e);
         return [];
     }
 };
@@ -166,12 +166,17 @@ const fetchLiveBrightComets = async (targetDate: Date): Promise<{ id: string, na
  * 1. Tries to fetch LIVE data for the specific date.
  * 2. If live data is empty (e.g. future date with no obs yet), falls back to Prediction DB.
  */
-export const getCometsByDate = async (dateStr: string): Promise<{ id: string, name: string }[]> => {
+export const getCometsByDate = async (
+  dateStr: string,
+  lat?: number | null,
+  lon?: number | null,
+): Promise<{ id: string, name: string, magnitude?: number, ra?: string, dec?: string }[]> => {
   const targetDate = new Date(dateStr);
   if (isNaN(targetDate.getTime())) return [];
 
-  // 1. Try Live Network Fetch (Real-time Observation Data)
-  const liveData = await fetchLiveBrightComets(targetDate);
+  // 1. Try COBS Planner API — purpose-built for finding visible comets
+  //    Returns magnitudes, positions, and visibility for a given date+location
+  const liveData = await fetchLiveBrightComets(targetDate, lat, lon);
   if (liveData.length > 0) {
       return liveData;
   }
@@ -260,21 +265,36 @@ export const fetchCometData = async (
 
         const obsUrl = `${COBS_OBS_LIST_ROOT}?${obsParams.toString()}`;
         if (onLog) onLog(`[COBS] Retrieving visual reports from ${formatDate(startDate)}...`);
-        
+
         const obsRes = await fetch(obsUrl);
         if (obsRes.ok) {
             const obsData = await obsRes.json();
-            if (obsData.object && Array.isArray(obsData.object)) {
-                observations = obsData.object.map((o: any) => ({
+            // COBS API v1.5: response has { info, object: [...], signature }
+            const obsArray = obsData.object;
+            if (onLog) onLog(`[COBS] Observation API returned ${obsArray ? obsArray.length : 0} records (total: ${obsData.info?.recordsTotal || '?'})`);
+            if (obsArray && Array.isArray(obsArray) && obsArray.length > 0) {
+                // Sort by date descending to get most recent observations first
+                const sorted = [...obsArray].sort((a: any, b: any) =>
+                  new Date(b.obs_date).getTime() - new Date(a.obs_date).getTime()
+                );
+                observations = sorted.map((o: any) => ({
                     obs_date: o.obs_date,
                     magnitude: o.magnitude,
                     coma_diameter: o.coma_diameter || null,
                     tail_length: o.tail_length || null,
                     observer: o.observer ? `${o.observer.last_name} (${o.observer.country})` : 'Unknown',
-                    method: o.obs_method?.key || 'N/A',
+                    method: o.obs_method?.key || o.type || 'N/A',
                     conditions: o.conditions
-                })).slice(0, 5);
+                })).slice(0, 10);  // Keep top 10 most recent
+                if (onLog) {
+                    const nearest = observations[0];
+                    onLog(`[COBS] Most recent observation: ${nearest.obs_date}, Mag ${nearest.magnitude} by ${nearest.observer}`);
+                }
+            } else if (onLog) {
+                onLog(`[COBS] No observations found for des="${usedDesignation}" in date range ${formatDate(startDate)} to ${formatDate(endDate)}`);
             }
+        } else {
+            if (onLog) onLog(`[COBS] Observation API returned HTTP ${obsRes.status}`);
         }
     } catch (obsErr) {
         console.warn("COBS Observation Fetch Error:", obsErr);
