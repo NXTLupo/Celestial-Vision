@@ -355,6 +355,24 @@ const App: React.FC = () => {
 
       if (cometResult) {
         addLog(`✓ [COMET] Comet data loaded: ${cometResult.name || target}`, 'success');
+        // If COBS observations are empty, try the Planner API for a better magnitude
+        if (!cometResult.recent_observations?.length && target) {
+          addLog(`[COMET] COBS has no recent observations for "${target}". Querying Planner for magnitude...`, 'info');
+          try {
+            const plannerComets = await getCometsByDate(exif.timestamp, exif.location?.lat, exif.location?.lon);
+            // Find the target in the Planner results
+            const targetLower = target.toLowerCase();
+            const plannerMatch = plannerComets.find(c =>
+              c.name.toLowerCase().includes(targetLower) ||
+              c.id.toLowerCase().includes(targetLower) ||
+              targetLower.includes(c.id.toLowerCase())
+            );
+            if (plannerMatch?.magnitude) {
+              (exif as any).plannerMagnitude = String(plannerMatch.magnitude);
+              addLog(`✓ [COMET] COBS Planner magnitude for ${target}: ${plannerMatch.magnitude.toFixed(1)}`, 'success');
+            }
+          } catch { /* Planner also failed — will use JPL */ }
+        }
       } else if (target) {
         addLog(`⚠ [COMET] User specified target "${target}" but COBS returned no data`, 'warning');
       } else {
@@ -362,7 +380,7 @@ const App: React.FC = () => {
       }
 
       if (horizonsResult) {
-        addLog(`✓ [HORIZONS] Ephemeris: RA=${horizonsResult.ra}, Dec=${horizonsResult.dec}, Mag=${horizonsResult.magnitude || '?'}`, 'success');
+        addLog(`✓ [HORIZONS] Ephemeris: RA=${horizonsResult.ra}, Dec=${horizonsResult.dec}, Mag=${horizonsResult.magnitude || '?'}, Dist=${horizonsResult.distance_au || '?'} AU`, 'success');
       } else if (target) {
         addLog(`⚠ [HORIZONS] No ephemeris data for "${target}"`, 'warning');
       }
