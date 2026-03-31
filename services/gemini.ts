@@ -922,10 +922,26 @@ ROLE: You are ghostwriting an Instagram post for Jonathan Lupo, an astrophotogra
 
 VOICE:
 - First person singular: "I", "my", "me" — never "we" or "our" or passive voice
-- Conversational but scientifically precise — like explaining your photo over drinks to someone who's genuinely curious
-- Show genuine excitement about what the data revealed — this isn't a press release, it's a personal post
+- Conversational but scientifically precise. Understated. Like quietly sharing what you found, not shouting about it.
+- Humble and matter-of-fact. Let the data speak. Don't hype or oversell.
+- NO excitement, NO exclamation points, NO "incredible", "amazing", "mind-blowing". Just share what's there.
 - Share the STORY behind the objects, not just catalog data
 - Replace catalog IDs with common names on first mention, then parenthetical catalog ID: "the Whirlpool Galaxy (M51)"
+
+CRITICAL — WRITE LIKE A REAL HUMAN, NOT AN AI:
+- NEVER use en dashes (–) or em dashes (—). Use regular hyphens (-) or just rewrite the sentence.
+- NEVER use the word "delve", "tapestry", "testament", "journey", "remarkable", "utilize", "leverage", "Furthermore", "Moreover", "Additionally", "It's worth noting", "Interestingly"
+- NEVER use the construction "not just X, but Y" or "from X to Y" as a rhetorical device
+- NEVER use "nestled", "captures the essence", "a testament to", "serves as a reminder"
+- NEVER start sentences with "This" referring to the previous sentence's subject
+- NEVER use semicolons in casual writing. Use periods.
+- Keep sentences SHORT. If a sentence has more than one comma, break it up.
+- Use contractions naturally: "it's", "didn't", "wasn't", "can't"
+- Use casual transitions: "Turns out", "Pretty wild that", "What's cool is", "The thing is"
+- It's okay to start sentences with "And" or "But"
+- Write like someone texting a friend who happens to be into astronomy, not like a Wikipedia article
+- NO flowery adjectives: not "breathtaking", "stunning", "magnificent", "awe-inspiring", "celestial dance"
+- Prefer plain words: "old" not "ancient", "big" not "massive", "found" not "discovered", "cool" not "fascinating"
 
 OBJECT HISTORY (CRITICAL — this is what makes the post interesting):
 - For EACH identified deep-sky object, include 1-2 sentences of its discovery history: who discovered it, when, with what telescope, and one fascinating scientific fact. Use Google Search to verify.
@@ -959,7 +975,7 @@ Explicitly cite EACH database that contributed to the analysis. Format naturally
 - Google Gemini — AI synthesis of deterministic pipeline results
 
 STRUCTURE (locked format — follow exactly):
-LINE 1: A personal hook under 125 characters. Draws the reader in. This shows before "...more".
+LINE 1: A quiet, understated hook under 125 characters. Factual, not clickbait. This shows before "...more".
 LINE 2: Empty line
 LINES 3-8: 2-3 paragraphs. The story of what I captured and what the pipeline found. Weave in object discovery history, scientific facts, and how the identification was made (plate solving, catalog matching, ephemeris cross-referencing). If satellites/debris were identified, include their specific history.
 LINE 9: Empty line
@@ -1015,6 +1031,9 @@ FAILURE PREVENTION:
 - Do NOT use emojis in the main caption body — only in the hashtag divider line if desired
 - NEVER say "we" — always "I"
 - NEVER use corporate/institutional voice — this is Jonathan's personal post
+- ZERO en dashes (–) or em dashes (—) anywhere in the output. Use hyphens (-) or rewrite.
+- ZERO AI-tell words: delve, tapestry, testament, journey, remarkable, utilize, leverage, Furthermore, Moreover, Additionally, nestled, awe-inspiring, celestial dance, breathtaking, stunning, magnificent
+- Read your output back. If it sounds like ChatGPT wrote it, rewrite it to sound like a person.
 `;
 
   // Build satellite match details
