@@ -73,9 +73,6 @@ Conversation history is preserved within a session. Markdown formatting (bold ob
 ### Instagram Caption Generator
 A separate panel generates an Instagram-ready caption from the identification results. The caption uses a fixed structure: opening hook, what was captured, what the pipeline found, a historical-plate paragraph if APPLAUSE data is available, and a citations paragraph naming the data sources used. The caption is generated in first person and constrained to 2,200 characters (Instagram's hard limit). Numeric values are taken verbatim from the FactSheet; if the post-generation check finds a numeric claim that doesn't match the FactSheet, it is corrected before display.
 
-### Instagram Publisher
-The caption can be sent directly to an Instagram account from the dashboard. Credentials are entered by the user, held in `localStorage` for convenience, and posted to the server-side middleware (`server/instagramApi.ts`) which uses the `instagram-publisher` library. Credentials are never persisted server-side; they live for the duration of the request.
-
 ### Real-Time Processing Log
 While the pipeline runs, a split overlay shows the image on one side and a live log on the other. Each pipeline stage logs its progress: API calls, response sizes, satellite candidates, comet ephemeris results, FOV crossings, and the deterministic injections. Failures and warnings are color-coded. The full log is preserved with the results so it can be reviewed after analysis completes.
 
