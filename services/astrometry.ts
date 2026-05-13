@@ -101,7 +101,7 @@ export const solveAstrometry = async (
   const apiKey = (process.env as any).ASTROMETRY_API_KEY;
 
   if (!apiKey) {
-    onLog("[ASTROMETRY] API Key missing. Set ASTROMETRY_API_KEY in .env.local (get a free key at nova.astrometry.net).");
+    onLog("[ASTROMETRY] Plate solving skipped — no Astrometry.net key configured. Open Settings to add one (free at nova.astrometry.net), or set ASTROMETRY_API_KEY in .env.local. The rest of the pipeline will continue without plate-solve features.");
     return null;
   }
 
