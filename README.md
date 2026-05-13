@@ -122,7 +122,7 @@ The pipeline is a starting point; the upstream databases are authoritative.
 2. **Parallel stage.** Astrometry.net plate solving, NASA NeoWs date-window query, COBS Planner visibility query, and streak detection run concurrently.
 3. **Enrichment.** Visible comets from COBS Planner are resolved through JPL Horizons and FOV-checked against the plate-solved field. NEOs are also resolved through Horizons. The TLE catalog is propagated via SGP4. When the TLE epoch is more than seven days from the observation date, Project Pluto is queried for archived TLEs and SatChecker verifies candidates.
 4. **FactSheet.** Verified numeric values from the above are collected into a structured block with source attribution.
-5. **Analysis.** The FactSheet plus the image are sent to Gemini 3 Pro for the main analysis pass. The output is streamed.
+5. **Analysis.** The FactSheet plus the image are sent to Gemini 3 Flash for the main analysis pass. The output is streamed.
 6. **Deterministic injection.** Comets confirmed in the plate-solved FOV and satellites matched to detected streaks are added to the identification list without depending on the model.
 7. **Resolver.** Unresolved objects are re-checked against the same databases.
 8. **APPLAUSE.** If overlapping historical plates exist, up to three are fetched and a vision diff is run for transient indicators (new objects, vanished objects, variability, proper motion).
@@ -225,7 +225,7 @@ These catalogs are used internally by Astrometry.net's index files for star patt
 
 ### AI Model
 
-**Google Gemini 3 Pro** via the `@google/genai` SDK. Used for image-aware text generation. Operated by Google DeepMind. Documentation: https://ai.google.dev/
+**Google Gemini 3 Flash** via the `@google/genai` SDK. Used for image-aware text generation. Operated by Google DeepMind. Documentation: https://ai.google.dev/
 
 ### Geocoding
 
