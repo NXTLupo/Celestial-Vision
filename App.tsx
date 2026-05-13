@@ -448,14 +448,8 @@ const App: React.FC = () => {
                     addLog(`[COMET SURVEY] ${comet.name}: RA=${eph.ra}, Dec=${eph.dec}, Mag=${eph.magnitude || '?'}, Dist=${eph.distance_au || '?'} AU, sep=${angularSep.toFixed(3)}° ${inFov ? '** IN FOV **' : `(outside, ${angularSep.toFixed(1)}° from center)`}`, inFov ? 'success' : 'info');
                   }
                 } else {
-                  // NO PLATE SOLVE: we have no field to check against, so we CANNOT claim a
-                  // comet is "in the field." Without a verified FOV, marking comets as inFov
-                  // based on magnitude alone caused hallucinations — e.g., for an M20 image
-                  // (RA ~270°, Dec ~-23°) the pipeline claimed C/2021 S3 at RA 307°, Dec +49°
-                  // was "in the field" because it was bright enough. That's 81° away.
-                  //
-                  // Correct behavior: log as visible-on-date only. Comet ephemeris is logged
-                  // for transparency but NOT injected as an identification.
+                  // Without a plate-solved FOV, geometric in-field check is impossible.
+                  // Log ephemeris for transparency but do not assert the comet is in the image.
                   inFov = false;
                   addLog(`[COMET SURVEY] ${comet.name}: RA=${eph.ra}°, Dec=${eph.dec}°, Mag=${eph.magnitude || '?'} — visible on this date but FOV check skipped (no plate solve)`, 'info');
                 }
@@ -658,11 +652,9 @@ const App: React.FC = () => {
           );
 
           // Enrich satellite matches with SatChecker data.
-          // CRITICAL: Only mark as "verified" if SatChecker confirms the object
-          // is actually IN the FOV. SatChecker returns positions for all queried
-          // objects — many will be outside the FOV. Marking those as "verified"
-          // would be a false positive (the COSMOS 886 DEB bug: SatChecker said
-          // it was 70.62° away, but code still marked it "verified").
+          // SatChecker returns positions for all queried objects, including
+          // those outside the FOV. Only treat results with inFov === true as
+          // verified; otherwise the position is informational, not a confirmation.
           for (const verified of satCheckerResults) {
             const match = satelliteMatches.find(s => s.noradId === verified.noradId);
             if (match) {
@@ -898,24 +890,15 @@ const App: React.FC = () => {
         );
       }
 
-      // ══════════════════════════════════════════════════════════════
-      // BUILD FACTSHEET — deterministic, verified data block.
-      // This is the SINGLE SOURCE OF TRUTH for numeric values.
-      // Gemini MUST quote these exactly. No LLM involvement in populating it.
-      // ══════════════════════════════════════════════════════════════
-      // ── MAGNITUDE RESOLUTION ──
-      // Priority: COBS observations (ground truth) > computed estimate > null (don't guess)
+      // Build FactSheet: structured numeric values from the deterministic services.
+      // Used downstream to constrain narrative output to verified numbers.
       //
-      // PROBLEM: For active comets, both automated sources are unreliable:
-      //   - COBS Planner: may return absolute magnitude H (e.g. 5 for 3I) not apparent
-      //   - JPL Horizons: uses H+G model (e.g. 14.994 for 3I) which ignores cometary activity
-      //   - Actual observed: ~10 (only available from COBS observation reports)
-      //
-      // SOLUTION: When Planner and Horizons disagree by >3 magnitudes, both are unreliable.
-      //   Compute an estimated apparent magnitude using the standard cometary formula:
-      //     m_apparent = H + 5*log10(delta) + 10*log10(r)
-      //   where H = Planner absolute mag, delta = Earth distance (AU), r ≈ delta (approx heliocentric)
-      //   This gives ~9.5 for 3I/ATLAS, much closer to reality than either raw source.
+      // Magnitude priority for comets:
+      //   1. COBS visual observations (apparent magnitude reported by observers)
+      //   2. JPL Horizons (H+G model, ignores cometary activity)
+      //   3. Computed estimate when sources disagree by >3 mag, using the
+      //      standard cometary formula m = H + 5·log10(Δ) + 10·log10(r)
+      //      (r approximated as Δ when heliocentric distance is unavailable)
       const cobsRecentMag = cometResult?.recent_observations?.[0]?.magnitude;
       const plannerMag = (exif as any).plannerMagnitude;
       const jplMag = horizonsResult?.magnitude;
