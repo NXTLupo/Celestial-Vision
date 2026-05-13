@@ -82,6 +82,40 @@ Every numeric value displayed in the dashboard or caption — distances, magnitu
 ### Theme and HUD Layer
 A "STARK" theme toggle inverts the dashboard between dark and light. A decorative HUD layer (wireframe globe, perspective grid, scanning waveforms) is rendered on canvas and reads from CSS custom properties so it adapts to the theme automatically.
 
+## Status and Known Limitations
+
+This project is in active development. Several features are being improved over time. When reading results, treat the items below as approximate rather than authoritative — verify against the upstream services directly for any use that matters.
+
+### Areas Under Active Improvement
+
+**Satellite identification.** SGP4 propagation depends on the TLE catalog being close in time to the observation. When the catalog epoch is more than a few days from the observation date, debris positions can be off by degrees and produce false matches. Project Pluto with archived TLEs is used as a fallback, but the integration has at times reported a satellite as "in field" that an authoritative Project Pluto query could not locate within a wide search radius. Results should be treated as candidates and cross-checked against `https://projectpluto.com/sat_id.htm` or `https://heavens-above.com` for anything beyond casual interest.
+
+**Streak detection.** The dedicated vision pass that identifies linear features in the image can miss faint streaks, produce coordinates that are slightly off, or occasionally return coordinates for features that aren't visually present. Coordinate-bounds validation rejects obvious outliers but is not a complete filter.
+
+**Streak-to-satellite correlation.** Matching a detected streak to one of several orbital candidates is geometric and can pick the wrong satellite when multiple objects cross the same field. A high "verified" badge in the dashboard reflects the verification of the satellite's *presence* in the FOV, not certainty that it is the one that produced a specific streak.
+
+**Comet apparent magnitude.** When recent COBS visual observations are available, they are reliable. When they are not, the pipeline falls back to JPL Horizons (which uses an H+G model that ignores cometary outgassing) or to an estimate computed from the absolute H magnitude and observer distance. The computed estimate is approximate and can differ from real observed values by a magnitude or more for active comets.
+
+**Watermark pre-scan.** Reading text from image overlays can occasionally interpret incidental text as a target name. When that happens, downstream logic may treat the wrong object as the intentional target.
+
+**APPLAUSE transient detection.** The five anomaly categories (new object, vanished object, variable, transient, proper motion) are produced by a vision-language model comparing two images. They are candidates for follow-up, not confirmed detections.
+
+**Plate-solve dependence.** Several features (FOV-based satellite check, FOV-based comet check, in-field NEO verification) depend on Astrometry.net returning a successful WCS solution. When plate solving fails (noisy images, low star count, queue timeouts), those features are skipped and the report becomes a narrower visual identification only.
+
+**TLE catalog coverage.** The CelesTrak active + debris + rocket-body groups cover most public catalog entries but not all. Maneuvering satellites and very recent launches may be absent until the catalog updates.
+
+### How to Sanity-Check a Report
+
+For any specific identification you care about:
+
+- Re-run Astrometry.net manually at `https://nova.astrometry.net` and confirm the WCS solution
+- For comets, check the current observed magnitude at `https://cobs.si`
+- For satellites, query Project Pluto's authoritative interface at `https://projectpluto.com/sat_id.htm` with the same date, time, and field center
+- For NEO close approaches, check `https://cneos.jpl.nasa.gov/ca/`
+- For historical plates, verify against the APPLAUSE archive viewer directly
+
+The pipeline is a starting point; the upstream databases are authoritative.
+
 ## Pipeline
 
 1. **EXIF + pre-scan.** EXIF.js extracts camera, date, GPS, and exposure. A Gemini call reads watermarks for target name, date, and location text.

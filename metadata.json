@@ -1,6 +1,6 @@
 {
-  "name": "Celestial Vision AI",
-  "description": "Autonomous celestial identification platform using Gemini 3 Pro Expert Astronomer and Astroquery methodologies.",
+  "name": "Celestial Vision",
+  "description": "Web application that orchestrates public astronomy databases to identify objects in astrophotography images.",
   "requestFramePermissions": [
     "camera",
     "geolocation"
