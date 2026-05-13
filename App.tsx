@@ -4,7 +4,7 @@ import { Header } from './components/Header';
 import { ImageUploader } from './components/ImageUploader';
 import { ResultsDashboard } from './components/ResultsDashboard';
 import { ProcessingOverlay } from './components/ProcessingOverlay';
-import { IdentificationResult, ProcessingState, ThoughtLog, FactSheet } from './types';
+import { IdentificationResult, ProcessingState, ThoughtLog, FactSheet, HorizonsData } from './types';
 import { analyzeCelestialImageStream, preScangImage, detectStreaks, DetectedStreak } from './services/gemini';
 import { solveAstrometry } from './services/astrometry';
 import { fetchNearEarthObjects, enrichNeosWithEphemeris } from './services/nasa';
@@ -389,14 +389,16 @@ const App: React.FC = () => {
       addLog(`══════════════════════════════════════════════\n`, 'info');
 
       // ══════════════════════════════════════════════════════════════
-      // STAGE 2: COMET SURVEY — uses plate-solved coordinates + EXIF date
-      //   Now that we KNOW where the image is pointing, query COBS for
-      //   all visible comets on the observation date, resolve their
-      //   ephemeris, and check if any fall within the plate-solved FOV.
-      //   If plate solving failed, still runs and passes bright comets
-      //   to Gemini for visual confirmation.
+      // STAGE 2: COMET SURVEY — ALWAYS RUNS for every image.
+      //   Query COBS for all visible comets on the observation date,
+      //   resolve their ephemeris via JPL Horizons, and check if any
+      //   fall within the plate-solved FOV. Comets confirmed in FOV
+      //   are DETERMINISTICALLY added as identifications — not dependent
+      //   on Gemini. Runs even when user specified a target, because
+      //   OTHER comets may also be in the field.
       // ══════════════════════════════════════════════════════════════
-      if (!target) {
+      const cometsInFov: { comet: { id: string, name: string, magnitude?: number }, eph: HorizonsData, angularSep: number }[] = [];
+      {
         setStatus(prev => ({ ...prev, message: 'Scanning comet databases for this sky region...', progress: 40 }));
         try {
           addLog(`[COMET SURVEY] Querying COBS for comets visible on ${exif.timestamp}...`, 'info');
@@ -427,6 +429,7 @@ const App: React.FC = () => {
                 if (isNaN(eRa) || isNaN(eDec)) continue;
 
                 let inFov = false;
+                let angularSep = 999;
 
                 if (astrometryResult) {
                   // PRECISE CHECK: plate-solved coordinates give exact FOV boundary
@@ -439,39 +442,52 @@ const App: React.FC = () => {
                     const cosDec = Math.cos(cDec * Math.PI / 180);
                     const dRa = (eRa - cRa) * cosDec;
                     const dDec = eDec - cDec;
-                    const angularSep = Math.sqrt(dRa * dRa + dDec * dDec);
+                    angularSep = Math.sqrt(dRa * dRa + dDec * dDec);
                     inFov = angularSep <= fovR;
 
                     addLog(`[COMET SURVEY] ${comet.name}: RA=${eph.ra}, Dec=${eph.dec}, Mag=${eph.magnitude || '?'}, Dist=${eph.distance_au || '?'} AU, sep=${angularSep.toFixed(3)}° ${inFov ? '** IN FOV **' : `(outside, ${angularSep.toFixed(1)}° from center)`}`, inFov ? 'success' : 'info');
                   }
                 } else {
-                  // NO PLATE SOLVE: can't check FOV geometrically.
-                  // Pass comets brighter than mag 18 as candidates — any comet
-                  // bright enough to photograph could be in the image.
-                  // (Previous threshold of 14 was too strict — 3I/ATLAS at 15.0
-                  // was rejected even though the user literally photographed it.
-                  // Long-exposure astrophotography can capture objects to mag 18+.)
-                  const mag = parseFloat(eph.magnitude || '99');
-                  inFov = mag < 18;
-                  addLog(`[COMET SURVEY] ${comet.name}: RA=${eph.ra}°, Dec=${eph.dec}°, Mag=${eph.magnitude || '?'} — ${inFov ? 'CANDIDATE (no plate solve, passing to Gemini)' : 'too faint (mag > 18)'}`, inFov ? 'success' : 'info');
+                  // NO PLATE SOLVE: we have no field to check against, so we CANNOT claim a
+                  // comet is "in the field." Without a verified FOV, marking comets as inFov
+                  // based on magnitude alone caused hallucinations — e.g., for an M20 image
+                  // (RA ~270°, Dec ~-23°) the pipeline claimed C/2021 S3 at RA 307°, Dec +49°
+                  // was "in the field" because it was bright enough. That's 81° away.
+                  //
+                  // Correct behavior: log as visible-on-date only. Comet ephemeris is logged
+                  // for transparency but NOT injected as an identification.
+                  inFov = false;
+                  addLog(`[COMET SURVEY] ${comet.name}: RA=${eph.ra}°, Dec=${eph.dec}°, Mag=${eph.magnitude || '?'} — visible on this date but FOV check skipped (no plate solve)`, 'info');
                 }
 
                 if (inFov) {
+                  cometsInFov.push({ comet, eph, angularSep });
+
                   // Store Planner API magnitude for FactSheet (more accurate than JPL for comets)
                   if ((comet as any).magnitude && !(exif as any).plannerMagnitude) {
                     (exif as any).plannerMagnitude = String((comet as any).magnitude);
                     addLog(`[COMET SURVEY] Using COBS Planner magnitude: ${(comet as any).magnitude} for ${comet.name}`, 'info');
                   }
-                  // Promote to full comet analysis
+                  // Promote the FIRST comet found to full comet analysis (for Gemini context)
                   if (!cometResult) {
-                    addLog(`[COMET SURVEY] Fetching COBS orbital data for ${comet.name}...`, 'info');
-                    cometResult = await fetchCometData(comet.id, exif.timestamp, (msg) => addLog(msg, 'info')).catch(() => null);
+                    addLog(`[COMET SURVEY] Fetching COBS orbital data for ${comet.name} (des="${comet.id}", ref=${exif.timestamp})...`, 'info');
+                    try {
+                      cometResult = await fetchCometData(comet.id, exif.timestamp, (msg) => addLog(msg, 'info'));
+                      if (cometResult) {
+                        const obsCount = cometResult.recent_observations?.length || 0;
+                        const nearestMag = obsCount > 0 ? cometResult.recent_observations![0].magnitude : null;
+                        addLog(`✓ [COMET SURVEY] COBS data loaded: ${cometResult.object?.fullname || comet.name}, ${obsCount} observations${nearestMag ? `, nearest mag: ${nearestMag}` : ''}`, 'success');
+                      } else {
+                        addLog(`⚠ [COMET SURVEY] fetchCometData returned null for "${comet.id}" — comet may not be in COBS database`, 'warning');
+                      }
+                    } catch (fetchErr: any) {
+                      addLog(`✗ [COMET SURVEY] fetchCometData FAILED for "${comet.id}": ${fetchErr.message}`, 'warning');
+                      cometResult = null;
+                    }
                   }
                   if (!horizonsResult) {
                     horizonsResult = eph;
                   }
-                  // If plate-solved and confirmed in FOV, we're done — this is definitive
-                  if (astrometryResult) break;
                 }
 
                 await new Promise(r => setTimeout(r, 400)); // Rate limit Horizons
@@ -480,17 +496,13 @@ const App: React.FC = () => {
               }
             }
 
-            if (!cometResult) {
-              // Even without ephemeris confirmation, pass the visible comet list
-              // to Gemini so it can mention them as candidates when plate solve fails.
-              // This prevents the case where 3I/ATLAS is visible but never mentioned.
-              if (!astrometryResult && visibleComets.length > 0) {
-                addLog(`[COMET SURVEY] No plate solve available. ${visibleComets.length} comets are visible on this date but cannot be FOV-checked: ${visibleComets.map(c => c.name).join(', ')}`, 'warning');
-                // Store visible comets list for Gemini to reference
-                (exif as any).visibleComets = visibleComets.map(c => c.name);
-              } else {
-                addLog('[COMET SURVEY] No comets fall within this field of view on the observation date.', 'info');
-              }
+            if (cometsInFov.length > 0) {
+              addLog(`✓ [COMET SURVEY] ${cometsInFov.length} comet(s) confirmed in/near FOV: ${cometsInFov.map(c => c.comet.name).join(', ')}`, 'success');
+            } else if (!astrometryResult && visibleComets.length > 0) {
+              addLog(`[COMET SURVEY] No plate solve available. ${visibleComets.length} comets are visible on this date but cannot be FOV-checked: ${visibleComets.map(c => c.name).join(', ')}`, 'warning');
+              (exif as any).visibleComets = visibleComets.map(c => c.name);
+            } else {
+              addLog('[COMET SURVEY] No comets fall within this field of view on the observation date.', 'info');
             }
           } else {
             addLog(`[COMET SURVEY] No bright comets in database for ${exif.timestamp}.`, 'info');
@@ -891,23 +903,80 @@ const App: React.FC = () => {
       // This is the SINGLE SOURCE OF TRUTH for numeric values.
       // Gemini MUST quote these exactly. No LLM involvement in populating it.
       // ══════════════════════════════════════════════════════════════
-      // Magnitude priority: COBS observations > COBS Planner > JPL Horizons
+      // ── MAGNITUDE RESOLUTION ──
+      // Priority: COBS observations (ground truth) > computed estimate > null (don't guess)
+      //
+      // PROBLEM: For active comets, both automated sources are unreliable:
+      //   - COBS Planner: may return absolute magnitude H (e.g. 5 for 3I) not apparent
+      //   - JPL Horizons: uses H+G model (e.g. 14.994 for 3I) which ignores cometary activity
+      //   - Actual observed: ~10 (only available from COBS observation reports)
+      //
+      // SOLUTION: When Planner and Horizons disagree by >3 magnitudes, both are unreliable.
+      //   Compute an estimated apparent magnitude using the standard cometary formula:
+      //     m_apparent = H + 5*log10(delta) + 10*log10(r)
+      //   where H = Planner absolute mag, delta = Earth distance (AU), r ≈ delta (approx heliocentric)
+      //   This gives ~9.5 for 3I/ATLAS, much closer to reality than either raw source.
       const cobsRecentMag = cometResult?.recent_observations?.[0]?.magnitude;
-      // Check if Planner API provided a magnitude for this comet
       const plannerMag = (exif as any).plannerMagnitude;
       const jplMag = horizonsResult?.magnitude;
-      const bestMag = cobsRecentMag || plannerMag || jplMag || null;
-      const bestMagSource = cobsRecentMag ? 'COBS observed' : (plannerMag ? 'COBS Planner predicted' : (jplMag ? 'JPL predicted' : null));
+
+      let bestMag: string | null = null;
+      let bestMagSource: string | null = null;
+
+      if (cobsRecentMag) {
+        // COBS actual observations — ground truth, always wins
+        bestMag = String(cobsRecentMag);
+        bestMagSource = 'COBS observed';
+      } else if (plannerMag && jplMag) {
+        const pMag = parseFloat(plannerMag);
+        const jMag = parseFloat(jplMag);
+        const diff = Math.abs(pMag - jMag);
+
+        if (diff > 3) {
+          // Sources wildly disagree — Planner is likely absolute H, Horizons is H+G (both wrong)
+          // Compute estimated apparent magnitude from Planner H + Horizons distance
+          const deltaAu = parseFloat(horizonsResult?.distance_au || '0');
+          if (deltaAu > 0 && pMag < jMag) {
+            // Use cometary magnitude formula: m = H + 5*log10(delta) + 10*log10(r)
+            // Approximation: r ≈ delta (acceptable when both are ~2 AU)
+            const rAu = deltaAu; // Heliocentric distance approximation
+            const computedMag = pMag + 5 * Math.log10(deltaAu) + 10 * Math.log10(rAu);
+            bestMag = computedMag.toFixed(1);
+            bestMagSource = 'computed (H+distance)';
+            addLog(`⚠ [MAGNITUDE] COBS Planner (${pMag}) and Horizons (${jMag}) disagree by ${diff.toFixed(1)} mag — both unreliable. Computing estimate: H=${pMag} + distance correction (delta=${deltaAu.toFixed(2)} AU) → apparent mag ≈ ${bestMag}`, 'warning');
+          } else {
+            // Can't compute — use neither, leave as uncertain
+            bestMag = null;
+            bestMagSource = null;
+            addLog(`⚠ [MAGNITUDE] COBS Planner (${plannerMag}) and Horizons (${jplMag}) disagree by ${diff.toFixed(1)} mag — magnitude uncertain.`, 'warning');
+          }
+        } else {
+          // Sources roughly agree — use the Horizons value (distance-corrected)
+          bestMag = jplMag;
+          bestMagSource = 'JPL predicted';
+        }
+      } else if (jplMag) {
+        bestMag = jplMag;
+        bestMagSource = 'JPL predicted';
+      } else if (plannerMag) {
+        bestMag = plannerMag;
+        bestMagSource = 'COBS Planner predicted';
+      }
 
       const factExpInfo = (await import('./services/satellites')).parseExposureInfo(exif.exposure);
 
+      // If comet survey found comets in FOV, include them in FactSheet
+      const surveyedCometNames = cometsInFov.map(c => c.comet.name);
+      // If no explicit target but survey found a comet, use the brightest one
+      const primaryCometFromSurvey = cometsInFov.length > 0 ? cometsInFov[0] : null;
+
       const factSheet: FactSheet = {
-        target_name: target || horizonsResult?.id || null,
-        target_type: cometResult ? 'comet' : (target ? 'deep_sky' : null),
+        target_name: target || primaryCometFromSurvey?.comet.name || horizonsResult?.id || null,
+        target_type: cometResult ? 'comet' : (primaryCometFromSurvey ? 'comet' : (target ? 'deep_sky' : null)),
         target_was_intentional: !!(target),
-        distance_au: horizonsResult?.distance_au || null,
-        magnitude: bestMag,
-        magnitude_source: bestMagSource as any,
+        distance_au: horizonsResult?.distance_au || primaryCometFromSurvey?.eph.distance_au || null,
+        magnitude: bestMag || (primaryCometFromSurvey?.eph.magnitude ? primaryCometFromSurvey.eph.magnitude : null),
+        magnitude_source: (bestMagSource || (primaryCometFromSurvey?.eph.magnitude ? 'JPL predicted' : null)) as any,
         ra: astrometryResult?.center_ra || null,
         dec: astrometryResult?.center_dec || null,
         constellation: astrometryResult?.constellation || null,
@@ -1163,6 +1232,56 @@ const App: React.FC = () => {
         }
       }
 
+      // ══════════════════════════════════════════════════════════════
+      // DETERMINISTIC COMET INJECTION
+      // Comets confirmed in FOV by the survey are added DIRECTLY as
+      // identifications. This does NOT depend on Gemini — it's purely
+      // from COBS + Horizons ephemeris + plate-solve FOV check.
+      // ══════════════════════════════════════════════════════════════
+      if (cometsInFov.length > 0) {
+        addLog(`\n══════════ COMET INJECTION ══════════`, 'info');
+        analysis.identifications = analysis.identifications || [];
+        for (const { comet, eph, angularSep } of cometsInFov) {
+          // Check if Gemini already identified this comet (avoid duplicates)
+          const alreadyIdentified = analysis.identifications.some(id =>
+            id.primary_name && (
+              id.primary_name.toLowerCase().includes(comet.id.toLowerCase()) ||
+              id.primary_name.toLowerCase().includes(comet.name.toLowerCase()) ||
+              comet.name.toLowerCase().includes(id.primary_name!.toLowerCase())
+            )
+          );
+          if (alreadyIdentified) {
+            addLog(`[COMET INJECT] ${comet.name} already in identifications (from Gemini). Skipping duplicate.`, 'info');
+            continue;
+          }
+
+          const evidence: string[] = [
+            `COBS Planner: visible on ${exif.timestamp}${comet.magnitude ? `, predicted magnitude ${comet.magnitude.toFixed(1)}` : ''}`,
+            `JPL Horizons ephemeris: RA=${eph.ra}°, Dec=${eph.dec}°${eph.magnitude ? `, mag ${eph.magnitude}` : ''}${eph.distance_au ? `, dist ${eph.distance_au} AU` : ''}`,
+          ];
+          if (astrometryResult) {
+            evidence.push(`Plate-solve FOV check: ${angularSep.toFixed(3)}° from field center (within ${astrometryResult.field_of_view} FOV)`);
+          }
+
+          const confidence = astrometryResult ? 0.90 : 0.60; // High if plate-solved, moderate if candidate
+          analysis.identifications.push({
+            object_type: 'comet' as any,
+            primary_name: comet.name,
+            best_catalog: 'COBS',
+            catalog_id: comet.id,
+            ra: eph.ra + '°',
+            dec: eph.dec + '°',
+            separation_arcsec: angularSep * 3600,
+            confidence,
+            evidence,
+            recommended_followup: `Track ${comet.name} via COBS (cobs.si) for current brightness reports.`,
+            verification_status: astrometryResult ? 'wcs_confirmed' : 'ephemeris_only',
+          } as any);
+
+          addLog(`✓ [COMET INJECT] ${comet.name} (${comet.id}): DETERMINISTIC identification added — confidence ${(confidence * 100).toFixed(0)}%, sep ${angularSep.toFixed(3)}°`, 'success');
+        }
+      }
+
       // STAGE 6: RESOLVE UNKNOWNS — exhaust every database for unidentified objects
       setStatus(prev => ({ ...prev, message: 'Resolving unknown objects...', progress: 90 }));
       // Only pass satellites to resolver if there are actual visible streaks.
@@ -1193,6 +1312,8 @@ const App: React.FC = () => {
       addLog(`· Resolver: ${resolvedIds.length} resolved, ${unresolvedIds.length} unresolved`, 'info');
       addLog(`· Satellites in FOV (SGP4): ${satelliteMatches.length}`, 'info');
       addLog(`· NEOs checked: ${neoResult?.length || 0}, in-field: ${neoResult?.filter((n: any) => n.in_field).length || 0}`, 'info');
+      const cometIds = (analysis.identifications || []).filter(id => (id.object_type || '').toLowerCase() === 'comet');
+      addLog(`· Comets in FOV: ${cometsInFov.length} surveyed, ${cometIds.length} in identifications${cometIds.length > 0 ? ' — ' + cometIds.map(c => c.primary_name).join(', ') : ''}`, cometsInFov.length > 0 ? 'success' : 'info');
       addLog(`══════════════════════════════════════════════\n`, 'info');
 
       setResults(analysis);
