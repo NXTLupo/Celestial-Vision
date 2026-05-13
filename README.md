@@ -2,6 +2,12 @@
 
 A web application that takes an astronomical image and runs it through several public astronomy databases and APIs to return identified objects, ephemeris data, and a natural-language summary.
 
+## Demo
+
+https://github.com/NXTLupo/astro_id/releases/download/v0.1.0-demo/celestial_vision.mp4
+
+*If the video doesn't autoplay, [download it here](https://github.com/NXTLupo/astro_id/releases/download/v0.1.0-demo/celestial_vision.mp4).*
+
 ## Overview
 
 The app accepts an image (JPEG or PNG, single-exposure or stacked) and orchestrates queries to:
