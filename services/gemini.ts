@@ -1188,7 +1188,7 @@ Summary: ${context.summary}
 Generate the Instagram caption now. Write as Jonathan Lupo in first person. Follow the locked structure exactly. Include discovery history for identified objects. If satellites/debris were found, include their specific history. If archival plates are listed above, you MUST include the historical plate paragraph. Cite the databases used.
 
 IMPORTANT TONE RULES:
-- If a comet or specific target was identified, do NOT frame it as a surprise discovery. The photographer INTENTIONALLY targeted this object. Say "I pointed my scope at 3I/ATLAS" or "I set out to capture 3I" — not "my pipeline discovered" or "turns out there's a comet."
+- If a comet or specific target was identified, do NOT frame it as a surprise discovery. The photographer INTENTIONALLY targeted this object. Say "I pointed my scope at [target name]" or "I set out to capture [target name]" — not "my pipeline discovered" or "turns out there's a comet."
 - Use the EXACT distance from the Horizons data above. If it says 1.97 AU, say "about 2 AU" or "roughly 2 astronomical units." NEVER guess a different number.
 `;
 
