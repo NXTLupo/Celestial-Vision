@@ -18,6 +18,65 @@ The app accepts an image (JPEG or PNG, single-exposure or stacked) and orchestra
 
 Results from the deterministic services are consolidated and passed to Google Gemini, which generates the human-readable report.
 
+## Features
+
+### Image Ingestion
+Drag-and-drop or file-picker upload for JPEG and PNG. The uploader accepts an optional target name and an optional date override, both useful when EXIF data is missing or unreliable. EXIF.js extracts camera model, exposure, date, and GPS coordinates when present. For images with watermarks or text overlays (e.g., Seestar app exports with "Target / Date / Exposure" footers), a pre-scan pass reads the overlay and pulls out target, date, location, and exposure values.
+
+### Plate Solving
+Astrometry.net handles the WCS calibration. The image is downscaled to a maximum of 1800 pixels before upload to stay within the service's limits. Results returned: field-center RA and Dec, plate scale in arcseconds per pixel, field of view in degrees, parity, rotation, constellation, and a list of catalog annotations (named stars, NGC/IC galaxies, deep-sky objects) with their positions in the field.
+
+### Satellite Identification
+Three sources working together:
+
+1. **Local SGP4 propagation** using TLEs fetched from CelesTrak. Three catalogs are pulled — active satellites, debris, and rocket bodies — for roughly 27,000 objects total. Each TLE is propagated to the observation time and checked against the plate-solved field. A motion-aware crossing check uses the sub-frame exposure for stacked images so a 300-second sub-exposure isn't mistakenly treated as a 30-minute integration.
+2. **Project Pluto sat_code**, queried when the TLE epoch is more than seven days from the observation date. Project Pluto uses archived historical TLEs that match the observation epoch, which is necessary for accurate positions on older debris.
+3. **IAU CPS SatChecker** for verification of SGP4 candidates and as a primary search when SGP4 returns nothing.
+
+Satellites are reported as visible in the image only when both orbital prediction and the independent streak detector agree.
+
+### Streak Detection
+A dedicated vision pass identifies linear features in the image and returns their pixel coordinates, length, position angle, and brightness. Coordinates are validated against image bounds and minimum/maximum length before being accepted. Detected streaks are correlated with satellite candidates by direction and FOV crossing. Streaks without a matching satellite are reported as unresolved linear features rather than mislabeled as a specific satellite.
+
+### Comet Identification
+For every image, the pipeline queries COBS Planner for comets visible on the observation date and location. For each visible comet, JPL Horizons returns the precise RA and Dec at the observation time, and the result is checked against the plate-solved field. Comets confirmed inside the field are added to the identification list with their COBS-observed apparent magnitude when available, or a magnitude computed from the absolute H value plus the observer distance when COBS observations are sparse. MPC packed designations returned by COBS Planner (e.g. `0003I`, `CK25T010`) are unpacked to the standard form (`3I`, `C/2025 T1`) accepted by Horizons.
+
+### Near-Earth Object Check
+NASA NeoWs returns close-approach objects for the observation date window. For any object within 0.1 AU, JPL Horizons resolves the precise position at observation time and the pipeline checks whether it falls in the plate-solved field. NEOs in the field are listed with distance, RA/Dec, and visual magnitude when available.
+
+### Catalog Registry Panel
+The results dashboard shows every confirmed identification as a tile, grouped by object type. Stars and galaxies from the Astrometry.net annotation pass appear with their catalog names; satellites show NORAD ID and verification source; comets show designation and current apparent magnitude. Each tile shows the confidence and verification status (plate-solve confirmed, ephemeris only, or unresolved).
+
+### Astrometry Overlay
+The plate-solved image is rendered with vector annotations matching what Astrometry.net returned — named stars, NGC/IC galaxies, deep-sky objects, plus pixel markers for satellites and comets that the pipeline injected. Object names are rendered with a gnomonic projection from RA/Dec to pixel coordinates so they sit on the correct features rather than being approximated.
+
+### Historical Plate Comparison (APPLAUSE Archive)
+When plate solving succeeds, the system queries the APPLAUSE TAP service for digitized historical photographic plates whose recorded position overlaps the user's field of view. Up to three matching plates are fetched with preview images. Each plate is compared against the modern image and an anomaly report is produced covering five categories: new objects, vanished objects, variable brightness, transients visible in only one epoch, and proper motion. Plates predating 1957 have any "satellite trail" anomalies auto-downgraded since such trails would not be possible on those plates.
+
+This comparison is vision-based rather than catalog-based, so results should be treated as candidates for follow-up rather than confirmed detections.
+
+### Ask the Astronomer
+A chat panel in the results dashboard for follow-up questions about the analyzed image. The chat is seeded with the full identification context — plate-solve details, object list, NEO matches, and the APPLAUSE anomaly report — so questions like "what is the streak in the upper right?" or "what's the distance to that NEO?" can be answered against the actual pipeline data rather than from general knowledge.
+
+The astronomer's system prompt covers plate solving and WCS, multi-epoch transient analysis methodology, space debris characterization, Moffat PSF photometry, GAIA-based absolute calibration, and orbit estimation from angular velocity. Google Search is enabled as a tool so the astronomer can verify facts about specific objects when asked.
+
+Conversation history is preserved within a session. Markdown formatting (bold object names, bullet lists) is rendered inline.
+
+### Instagram Caption Generator
+A separate panel generates an Instagram-ready caption from the identification results. The caption uses a fixed structure: opening hook, what was captured, what the pipeline found, a historical-plate paragraph if APPLAUSE data is available, and a citations paragraph naming the data sources used. The caption is generated in first person and constrained to 2,200 characters (Instagram's hard limit). Numeric values are taken verbatim from the FactSheet; if the post-generation check finds a numeric claim that doesn't match the FactSheet, it is corrected before display.
+
+### Instagram Publisher
+The caption can be sent directly to an Instagram account from the dashboard. Credentials are entered by the user, held in `localStorage` for convenience, and posted to the server-side middleware (`server/instagramApi.ts`) which uses the `instagram-publisher` library. Credentials are never persisted server-side; they live for the duration of the request.
+
+### Real-Time Processing Log
+While the pipeline runs, a split overlay shows the image on one side and a live log on the other. Each pipeline stage logs its progress: API calls, response sizes, satellite candidates, comet ephemeris results, FOV crossings, and the deterministic injections. Failures and warnings are color-coded. The full log is preserved with the results so it can be reviewed after analysis completes.
+
+### Deterministic FactSheet
+Every numeric value displayed in the dashboard or caption — distances, magnitudes, RA/Dec, FOV, object counts — comes from a `FactSheet` object assembled from API responses with explicit source attribution. The FactSheet is included as context in every generative prompt, and a post-generation pass compares numeric claims in the generated text against the FactSheet, correcting mismatches.
+
+### Theme and HUD Layer
+A "STARK" theme toggle inverts the dashboard between dark and light. A decorative HUD layer (wireframe globe, perspective grid, scanning waveforms) is rendered on canvas and reads from CSS custom properties so it adapts to the theme automatically.
+
 ## Pipeline
 
 1. **EXIF + pre-scan.** EXIF.js extracts camera, date, GPS, and exposure. A Gemini call reads watermarks for target name, date, and location text.
