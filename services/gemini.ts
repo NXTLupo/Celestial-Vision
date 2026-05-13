@@ -3,6 +3,11 @@ import { GoogleGenAI, Type, GenerateContentResponse, Chat } from "@google/genai"
 import { IdentificationResult, PlateSolveMetadata, NeoObject, CometData, HorizonsData } from "../types";
 import { catalogIdsMatch } from "../utils/catalogMatch";
 
+// Single source of truth for the Gemini model. Swap here to switch all calls.
+// Numeric hallucination is bounded by the FactSheet pattern and the post-generation
+// verifyCaption check, regardless of which model variant is used.
+const MODEL = 'gemini-3-flash-preview';
+
 const cleanResponseText = (text: string): string => {
   let clean = text.trim();
   if (clean.startsWith('```json')) clean = clean.slice(7);
@@ -68,7 +73,7 @@ RULES:
 
   try {
     const result = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: MODEL,
       contents: [{
         parts: [
           { inlineData: { mimeType: "image/jpeg", data: base64Image.split(',')[1] } },
@@ -161,7 +166,7 @@ If you find zero streaks, return an empty array. Both finding streaks and findin
 
   try {
     const result = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: MODEL,
       contents: [{
         parts: [
           { inlineData: { mimeType: "image/jpeg", data: base64Image.split(',')[1] } },
@@ -412,7 +417,7 @@ export const analyzeCelestialImageStream = async (
   const isVisionMode = !astrometry;
   
   try {
-    const selectedModel = 'gemini-3-pro-preview';
+    const selectedModel = MODEL;
     onThought(isVisionMode ? `Plate solve failed. Engaging Gemini 3 Vision...` : `Engaging Gemini 3 Pro for Multi-Pass Forensics...`);
 
     let systemInstruction = "";
@@ -1198,7 +1203,7 @@ IMPORTANT TONE RULES:
   ];
 
   const result = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
+    model: MODEL,
     contents: [{ parts }],
     config: {
       systemInstruction,
@@ -1430,7 +1435,7 @@ ${plateYear && parseInt(plateYear) < 1957 ? `- This plate is from ${plateYear}, 
   let result;
   try {
     result = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: MODEL,
       contents: [{ parts }],
       config: {
         systemInstruction,
@@ -1442,7 +1447,7 @@ ${plateYear && parseInt(plateYear) < 1957 ? `- This plate is from ${plateYear}, 
   } catch {
     // Retry without Google Search if it fails
     result = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: MODEL,
       contents: [{ parts }],
       config: {
         systemInstruction,
@@ -1461,7 +1466,7 @@ ${plateYear && parseInt(plateYear) < 1957 ? `- This plate is from ${plateYear}, 
     } catch {
       // Google Search grounding can corrupt JSON — retry without it
       const retryResult = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
+        model: MODEL,
         contents: [{ parts }],
         config: {
           systemInstruction,
@@ -1579,7 +1584,7 @@ RESPONSE STYLE:
   });
 
   const chat = ai.chats.create({
-    model: 'gemini-3-pro-preview',
+    model: MODEL,
     config: {
       systemInstruction,
       tools: [{ googleSearch: {} }],
