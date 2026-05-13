@@ -14,7 +14,7 @@ const getAnnotatedImageUrl = (jobId: number) => {
   return `/proxy/astrometry/annotated_display/${jobId}`;
 };
 
-const ASTROMETRY_API_KEY = "REDACTED_ASTROMETRY_KEY";
+// API key must be provided via ASTROMETRY_API_KEY env var (see .env.example)
 
 const base64ToBlob = (base64: string): Blob => {
   const parts = base64.split(';base64,');
@@ -98,10 +98,10 @@ export const solveAstrometry = async (
   base64Image: string, 
   onLog: (msg: string) => void
 ): Promise<PlateSolveMetadata | null> => {
-  const apiKey = (process.env as any).ASTROMETRY_API_KEY || ASTROMETRY_API_KEY;
-  
+  const apiKey = (process.env as any).ASTROMETRY_API_KEY;
+
   if (!apiKey) {
-    onLog("[ASTROMETRY] API Key missing. Skipping Physics Engine.");
+    onLog("[ASTROMETRY] API Key missing. Set ASTROMETRY_API_KEY in .env.local (get a free key at nova.astrometry.net).");
     return null;
   }
 
