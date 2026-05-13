@@ -57,6 +57,65 @@ const OFFLINE_PREDICTION_DB = [
   { id: "1P", name: "1P/Halley", start: "1985-10-01", end: "1986-06-01" }
 ];
 
+/**
+ * Unpack MPC packed designation format to standard IAU format.
+ * COBS Planner API returns mpc_name in packed format that JPL Horizons rejects.
+ *
+ * Examples:
+ *   "0024P"    → "24P"         (numbered periodic)
+ *   "0003I"    → "3I"          (interstellar)
+ *   "0210P"    → "210P"        (numbered periodic)
+ *   "CK25T010" → "C/2025 T1"  (long-period comet)
+ *   "PK25A020" → "P/2025 A2"  (short-period provisional)
+ */
+const unpackMpcDesignation = (packed: string): string => {
+  if (!packed) return packed;
+
+  // Numbered objects: leading-zero-padded number + type letter (P, I, D)
+  // e.g., "0024P" → "24P", "0003I" → "3I", "0210P" → "210P"
+  const numberedMatch = packed.match(/^(\d+)([PID])$/i);
+  if (numberedMatch) {
+    const num = parseInt(numberedMatch[1], 10);
+    return `${num}${numberedMatch[2].toUpperCase()}`;
+  }
+
+  // Provisional designations: TypeCenturyYearHalfMonthNumberFragment
+  // e.g., "CK25T010" → "C/2025 T1"
+  //   Type: C, P, D, X, A, I (single char)
+  //   Century: I=18xx, J=19xx, K=20xx
+  //   Year: 2 digits
+  //   HalfMonth: A-Y letter
+  //   Number: 2 chars (digits or letter+digit for >99)
+  //   Fragment: 0=none, 1-9/a-z=fragment
+  const provisionalMatch = packed.match(/^([CPXIDA])([IJK])(\d{2})([A-Y])(\d{2}|[A-Z]\d)(\d)$/i);
+  if (provisionalMatch) {
+    const type = provisionalMatch[1].toUpperCase();
+    const centuryChar = provisionalMatch[2].toUpperCase();
+    const yearInCentury = provisionalMatch[3];
+    const halfMonth = provisionalMatch[4].toUpperCase();
+    const numStr = provisionalMatch[5];
+    // Fragment ignored for now (0 = no fragment)
+
+    const centuryMap: Record<string, string> = { 'I': '18', 'J': '19', 'K': '20' };
+    const century = centuryMap[centuryChar] || '20';
+    const fullYear = `${century}${yearInCentury}`;
+
+    // Decode number: "01" → 1, "10" → 10, "A0" → 100, "A1" → 101, etc.
+    let number: number;
+    if (/^[A-Z]/i.test(numStr)) {
+      const letterVal = numStr.charCodeAt(0) - 'A'.charCodeAt(0) + 10;
+      number = letterVal * 10 + parseInt(numStr[1], 10);
+    } else {
+      number = parseInt(numStr, 10);
+    }
+
+    return `${type}/${fullYear} ${halfMonth}${number}`;
+  }
+
+  // Already standard format or unrecognized — return as-is
+  return packed;
+};
+
 const normalizeDesignation = (input: string): string | null => {
   let cleaned = input.trim();
   const lower = cleaned.toLowerCase();
@@ -154,7 +213,7 @@ const fetchLiveBrightComets = async (
             .sort((a: any, b: any) => (a.magnitude || 99) - (b.magnitude || 99))
             .slice(0, 15) // Top 15
             .map((c: any) => ({
-                id: c.mpc_name || c.comet_name,
+                id: unpackMpcDesignation(c.mpc_name || c.comet_name),
                 name: c.comet_fullname || c.comet_name,
                 magnitude: c.magnitude ? parseFloat(c.magnitude) : undefined,
                 ra: c.best_ra,
@@ -219,13 +278,20 @@ export const fetchCometData = async (
       'phys-par': 'true',
       'alt-des': 'true'
     });
-    
+
     const url = `${COBS_API_ROOT}?${params.toString()}`;
+    if (onLog) onLog(`[COBS] Fetching: ${url}`);
     const res = await fetch(url);
-    
+
     if (res.ok) {
         const data = await res.json();
-        if (data.object) return { data, usedDesignation: queryDes };
+        if (data.object) {
+            if (onLog) onLog(`[COBS] ✓ Found: ${data.object.fullname || data.object.name} (type: ${data.object.type})`);
+            return { data, usedDesignation: queryDes };
+        }
+        if (onLog) onLog(`[COBS] Response OK but no 'object' field in response`);
+    } else {
+        if (onLog) onLog(`[COBS] HTTP ${res.status} for des="${queryDes}"`);
     }
     return null;
   };
