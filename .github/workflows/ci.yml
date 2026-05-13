@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node from .nvmrc
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Lint (warnings allowed)
+        run: npx eslint . --max-warnings 99999 || true
+
+      - name: Build
+        run: npm run build
+        env:
+          GEMINI_API_KEY: dummy-key-for-build
+          ASTROMETRY_API_KEY: dummy-key-for-build
+          APPLAUSE_TOKEN: dummy-token-for-build

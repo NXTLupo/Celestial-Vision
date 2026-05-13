@@ -7,21 +7,36 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Build artifacts
 node_modules
 dist
 dist-ssr
-*.local
+*.tsbuildinfo
+.cache/
 
-# Editor directories and files
+# Environment files (any .local variant)
+*.local
+.env
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Coverage and test artifacts
+coverage/
+
+# Development scratch
 CLAUDE.md
 intelligence/
 608

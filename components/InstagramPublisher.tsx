@@ -197,25 +197,8 @@ export const InstagramPublisher: React.FC<InstagramPublisherProps> = ({
   };
 
   const handlePublish = async () => {
-    if (!igEmail || !igPassword) { setShowCredentials(true); return; }
-    localStorage.setItem('ig_email', igEmail);
-    localStorage.setItem('ig_password', igPassword);
-    setPublishState('publishing');
-    setPublishError('');
-    try {
-      const allImages = availableImages.filter(i => i.type !== 'archival').map(i => i.src);
-      const res = await fetch('/api/instagram/publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: igEmail, password: igPassword, caption, images: allImages }),
-      });
-      const data = await res.json();
-      if (data.succeeded) setPublishState('success');
-      else { setPublishState('error'); setPublishError(data.message || data.error || 'Unknown error'); }
-    } catch (err: any) {
-      setPublishState('error');
-      setPublishError(err.message || 'Network error');
-    }
+    setPublishState('error');
+    setPublishError('Direct publishing is not available in this build. Use the Copy button to copy the caption and post manually.');
   };
 
   const handleCopyCaption = async () => {

@@ -1,7 +1,6 @@
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-import { instagramPublishPlugin } from './server/instagramApi';
 import { applauseQueryPlugin } from './server/applauseApi';
 
 export default defineConfig(({ mode }) => {
@@ -45,7 +44,7 @@ export default defineConfig(({ mode }) => {
           },
         },
       },
-      plugins: [react(), instagramPublishPlugin(), applauseQueryPlugin(env.APPLAUSE_TOKEN || '')],
+      plugins: [react(), applauseQueryPlugin(env.APPLAUSE_TOKEN || '')],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
