@@ -24,8 +24,8 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
-      - name: Lint (warnings allowed)
-        run: npx eslint . --max-warnings 99999 || true
+      - name: Lint
+        run: npx eslint .
 
       - name: Build
         run: npm run build

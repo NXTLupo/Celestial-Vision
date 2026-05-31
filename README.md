@@ -333,6 +333,12 @@ npm run preview   # Preview production build
 | OpenStreetMap Nominatim | https://nominatim.openstreetmap.org |
 | Google Gemini API | https://ai.google.dev/ |
 
+## Security and Privacy
+
+This project is a local-first development tool. API keys configured in `.env.local` are inlined into the client bundle at build time. The dev server binds to `127.0.0.1` and is not designed to be exposed publicly.
+
+When an image is uploaded, EXIF metadata (including GPS coordinates if present) and the image itself are sent to external services for analysis. See [SECURITY.md](SECURITY.md) for the full data-flow table and details on what to consider before deploying or sharing analysis results.
+
 ## License and Attribution
 
 When using identification results in published or shared material, please credit the underlying data sources. The generated Instagram caption includes attribution automatically.

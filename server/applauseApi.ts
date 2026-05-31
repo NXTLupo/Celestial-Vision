@@ -28,19 +28,51 @@ export function applauseQueryPlugin(token: string): Plugin {
         }
 
         try {
+          const MAX_BODY_BYTES = 16_384;
+          const declared = Number(req.headers['content-length'] || 0);
+          if (declared > MAX_BODY_BYTES) {
+            res.statusCode = 413;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'Request too large' }));
+            return;
+          }
+
           const body = await new Promise<string>((resolve, reject) => {
             let data = '';
-            req.on('data', (chunk: Buffer) => { data += chunk.toString(); });
+            let size = 0;
+            req.on('data', (chunk: Buffer) => {
+              size += chunk.length;
+              if (size > MAX_BODY_BYTES) {
+                reject(new Error('Request body exceeded limit'));
+                return;
+              }
+              data += chunk.toString();
+            });
             req.on('end', () => resolve(data));
             req.on('error', reject);
           });
 
-          const { ra, dec, radius } = JSON.parse(body);
+          const parsed = JSON.parse(body);
+          const ra = Number(parsed.ra);
+          const dec = Number(parsed.dec);
+          const radius = Number(parsed.radius ?? 2.0);
 
-          if (ra === undefined || dec === undefined) {
+          if (!Number.isFinite(ra) || ra < 0 || ra > 360) {
             res.statusCode = 400;
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ error: 'Missing ra and dec parameters' }));
+            res.end(JSON.stringify({ error: 'Invalid ra (must be a finite number in [0, 360])' }));
+            return;
+          }
+          if (!Number.isFinite(dec) || dec < -90 || dec > 90) {
+            res.statusCode = 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'Invalid dec (must be a finite number in [-90, 90])' }));
+            return;
+          }
+          if (!Number.isFinite(radius) || radius <= 0 || radius > 5) {
+            res.statusCode = 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'Invalid radius (must be a finite number in (0, 5])' }));
             return;
           }
 
@@ -51,7 +83,7 @@ export function applauseQueryPlugin(token: string): Plugin {
             return;
           }
 
-          const searchRadius = radius || 2.0;
+          const searchRadius = radius;
           // Box search in RA/Dec — simple and universally supported
           const cosDec = Math.cos(dec * Math.PI / 180);
           const raMin = (ra - searchRadius / Math.max(cosDec, 0.1)).toFixed(4);
