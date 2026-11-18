@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Celestial Vision</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600&family=Source+Sans+3:wght@400;600&family=DM+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a star-atlas sheet. The hero is a Prussian-blue chart field with the app's screenshot framed like a scanned plate; each section below draws one mechanism of the code in chart ink, with grease-pencil red marking what the model wrote. */
+:root {
+  --paper: #ECF0F2;
+  --card: #F8FAFB;
+  --ink: #13233A;
+  --muted: #536276;
+  --line: #C3CDD6;
+  --chart: #1D5C9E;
+  --chart-soft: #D7E5F3;
+  --pencil: #B3362B;
+  --pencil-soft: #F4DEDA;
+  --night: #0E2340;
+  --night-2: #13304F;
+  --night-line: #294467;
+  --night-ink: #E8EEF5;
+  --night-muted: #A3B5CA;
+  --night-accent: #8DB7E4;
+  --star: #F3E6C4;
+  --display: "Jost", "Futura", "Century Gothic", "Avenir Next", sans-serif;
+  --body: "Source Sans 3", "Source Sans Pro", "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #0C1724; --card: #111F31; --ink: #E2E9F1; --muted: #98A9BD; --line: #2A3C53;
+  --chart: #86B6EA; --chart-soft: #1A3150; --pencil: #F2907C; --pencil-soft: #3A2421;
+  --night: #081426; --night-2: #0E2038; --night-line: #22395A; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --paper: #0C1724; --card: #111F31; --ink: #E2E9F1; --muted: #98A9BD; --line: #2A3C53;
+  --chart: #86B6EA; --chart-soft: #1A3150; --pencil: #F2907C; --pencil-soft: #3A2421;
+  --night: #081426; --night-2: #0E2038; --night-line: #22395A; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.6 var(--body); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+section { padding-block: 64px; border-top: 1px solid var(--line); }
+h1, h2 { font-family: var(--display); font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: .005em; }
+h2 { font-size: clamp(28px, 3.3vw, 40px); line-height: 1.12; max-width: 28ch; }
+p { margin: 0; }
+.kicker { font: 500 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--chart); }
+.intro { display: grid; gap: 12px; }
+.intro p { color: var(--muted); max-width: 68ch; }
+code { font-family: var(--mono); font-size: .84em; }
+
+/* Hero: chart field */
+.hero { position: relative; overflow: hidden; background: var(--night); color: var(--night-ink); border-bottom: 1px solid var(--night-line); }
+.hero .sky { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.sky .gr { stroke: var(--night-line); stroke-width: 1; fill: none; }
+.sky .st { fill: var(--star); }
+.hero .wrap { position: relative; padding-block: 60px 52px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.22fr); gap: 48px; align-items: center; }
+.hero .kicker { color: var(--night-accent); }
+.hero h1 { font-size: clamp(52px, 7.2vw, 96px); line-height: .92; margin-top: 16px; letter-spacing: -.01em; }
+.hero .lead { margin-top: 20px; font-size: 19px; line-height: 1.55; max-width: 46ch; color: var(--night-ink); }
+.facts { margin-top: 28px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; }
+.fact { border-top: 1px solid var(--night-line); padding-top: 9px; }
+.fact span { display: block; font: 500 11px/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--night-muted); }
+.fact b { font-weight: 600; font-size: 16px; }
+.fact b.mono { font: 500 14.5px/1.5 var(--mono); }
+.plate { position: relative; margin: 0; }
+.plate .frame { position: relative; padding: 12px; background: var(--night-2); border: 1px solid var(--night-line); border-radius: 2px; }
+.plate .tagrow { display: flex; justify-content: space-between; gap: 12px; font: 500 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--night-muted); padding: 2px 2px 11px; }
+.plate img { display: block; width: 100%; height: auto; }
+.reg { position: absolute; width: 16px; height: 16px; border: 0 solid var(--star); opacity: .8; }
+.reg.tl { top: -6px; left: -6px; border-top-width: 1.5px; border-left-width: 1.5px; }
+.reg.tr { top: -6px; right: -6px; border-top-width: 1.5px; border-right-width: 1.5px; }
+.reg.bl { bottom: -6px; left: -6px; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.reg.br { bottom: -6px; right: -6px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+.plate figcaption { font-size: 14px; line-height: 1.5; color: var(--night-muted); margin-top: 14px; max-width: 72ch; }
+@media (max-width: 920px) { .hero .wrap { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .facts { grid-template-columns: 1fr; } }
+
+/* Drawn diagrams */
+figure.diagram { margin: 32px 0 0; }
+.scroll { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 20px; }
+.scroll svg { display: block; width: 100%; min-width: 980px; height: auto; }
+figure.diagram figcaption { color: var(--muted); font-size: 15px; margin-top: 12px; max-width: 82ch; }
+.d text { font-family: var(--body); font-size: 13px; fill: var(--ink); }
+.d .t { font-family: var(--display); font-size: 16px; font-weight: 600; }
+.d .rt { font-size: 14px; font-weight: 600; }
+.d .k { font-family: var(--mono); font-size: 10.5px; fill: var(--chart); letter-spacing: .04em; }
+.d .m { fill: var(--muted); font-size: 12px; }
+.d .lab { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+.d .route { font-family: var(--mono); font-size: 12px; }
+.d .pt { fill: var(--pencil); }
+.d .ct { fill: var(--chart); }
+.d .box { fill: var(--card); stroke: var(--ink); stroke-width: 1.2; }
+.d .gem { fill: var(--card); stroke: var(--pencil); stroke-width: 2.2; }
+.d .hot { fill: var(--card); stroke: var(--chart); stroke-width: 2.4; }
+.d .pill { fill: var(--paper); stroke: var(--line); stroke-width: 1.2; }
+.d .pill.mw { stroke: var(--chart); stroke-width: 2; }
+.d .soft { fill: var(--paper); stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 3; }
+.d .zone { fill: none; stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 6 5; }
+.d .gate { fill: none; stroke: var(--pencil); stroke-width: 1.4; stroke-dasharray: 5 3; }
+.d .sep { stroke: var(--line); stroke-width: 1; }
+.d .edge { stroke: var(--ink); stroke-width: 1.4; fill: none; }
+.d .bus { stroke: var(--chart); stroke-width: 2.2; fill: none; }
+.d .fall { stroke: var(--muted); stroke-width: 1.3; fill: none; stroke-dasharray: 5 4; }
+.d .over { stroke: var(--pencil); stroke-width: 1.6; fill: none; stroke-dasharray: 5 4; }
+.d .ah { fill: var(--ink); }
+.d .ahm { fill: var(--muted); }
+.d .ahc { fill: var(--chart); }
+.d .ahp { fill: var(--pencil); }
+.d .jn { fill: var(--muted); }
+.d .jc { fill: var(--chart); }
+.d .plate { fill: var(--paper); stroke: var(--ink); stroke-width: 1.2; }
+.d .reg { stroke: var(--chart); stroke-width: 1.6; fill: none; }
+.d .grat { stroke: var(--line); stroke-width: 1; fill: none; }
+.d .star { fill: var(--muted); }
+.d .guess { fill: none; stroke: var(--pencil); stroke-width: 2; }
+.d .ring { fill: none; stroke: var(--chart); stroke-width: 2; }
+.d .dot { fill: var(--ink); }
+.d .band { fill: var(--pencil); opacity: .32; }
+.d .halo { paint-order: stroke; stroke: var(--paper); stroke-width: 5px; stroke-linejoin: round; }
+.d .axis { stroke: var(--ink); stroke-width: 1.4; }
+.d .tick { stroke: var(--ink); stroke-width: 1.2; }
+.d .ptick { stroke: var(--pencil); stroke-width: 2; }
+
+.notes { margin-top: 28px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.note { display: grid; gap: 6px; align-content: start; border-top: 2px solid var(--chart-soft); padding-top: 12px; }
+.note b { font: 600 19px/1.2 var(--display); }
+.note p { font-size: 15.5px; color: var(--muted); }
+@media (max-width: 860px) { .notes { grid-template-columns: 1fr; } }
+
+/* Run */
+.runs { margin-top: 28px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+.runs > div { display: grid; gap: 20px; min-width: 0; }
+pre { margin: 0; padding: 16px 18px; background: var(--night); color: var(--night-ink); font: 400 13px/1.7 var(--mono); overflow-x: auto; border-radius: 4px; }
+pre .c { color: var(--night-muted); }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 4px; background: var(--card); }
+table { border-collapse: collapse; width: 100%; min-width: 440px; font-size: 15px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 500 11px/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); background: var(--paper); }
+td.var { font-family: var(--mono); font-size: 13px; white-space: nowrap; color: var(--chart); }
+tr:last-child td { border-bottom: 0; }
+.shot { margin: 0; }
+.shot .frame { padding: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 2px; position: relative; }
+.shot .reg { border-color: var(--chart); opacity: .9; }
+.shot img { display: block; width: 100%; height: auto; }
+.shot figcaption { font-size: 15px; color: var(--muted); margin-top: 12px; }
+@media (max-width: 900px) { .runs { grid-template-columns: 1fr; } }
+footer { padding-block: 28px 44px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
+</style>
+
+<header class="hero" id="hero">
+  <svg class="sky" viewBox="0 0 1440 640" preserveAspectRatio="xMaxYMid slice" aria-hidden="true">
+    <circle class="gr" cx="1250" cy="-420" r="560"/>
+    <circle class="gr" cx="1250" cy="-420" r="700"/>
+    <circle class="gr" cx="1250" cy="-420" r="840"/>
+    <circle class="gr" cx="1250" cy="-420" r="980"/>
+    <circle class="gr" cx="1250" cy="-420" r="1120"/>
+    <line class="gr" x1="1250" y1="-420" x2="124" y2="230"/>
+    <line class="gr" x1="1250" y1="-420" x2="331" y2="499"/>
+    <line class="gr" x1="1250" y1="-420" x2="600" y2="706"/>
+    <line class="gr" x1="1250" y1="-420" x2="914" y2="836"/>
+    <line class="gr" x1="1250" y1="-420" x2="1250" y2="880"/>
+    <line class="gr" x1="1250" y1="-420" x2="1586" y2="836"/>
+    <g class="st">
+      <circle cx="36" cy="58" r="1.4" opacity=".55"/><circle cx="118" cy="22" r="1" opacity=".5"/>
+      <circle cx="402" cy="36" r="1.1" opacity=".5"/>
+      <circle cx="560" cy="88" r="1.5" opacity=".55"/><circle cx="640" cy="28" r="2.2" opacity=".7"/>
+      <circle cx="54" cy="604" r="1.6" opacity=".5"/><circle cx="214" cy="582" r="1" opacity=".45"/>
+      <circle cx="388" cy="616" r="1.9" opacity=".55"/><circle cx="604" cy="598" r="1.2" opacity=".5"/>
+      <circle cx="702" cy="610" r="1.6" opacity=".6"/><circle cx="742" cy="44" r="1.3" opacity=".6"/>
+      <circle cx="812" cy="20" r="1" opacity=".55"/><circle cx="902" cy="40" r="2" opacity=".75"/>
+      <circle cx="1004" cy="24" r="1.2" opacity=".6"/><circle cx="1120" cy="34" r="1.7" opacity=".7"/>
+      <circle cx="1236" cy="18" r="1" opacity=".55"/><circle cx="1330" cy="46" r="2.4" opacity=".8"/>
+      <circle cx="1410" cy="26" r="1.2" opacity=".6"/><circle cx="1418" cy="160" r="1.6" opacity=".7"/>
+      <circle cx="1424" cy="330" r="1.1" opacity=".55"/><circle cx="1408" cy="470" r="2" opacity=".7"/>
+      <circle cx="1418" cy="612" r="1.3" opacity=".6"/><circle cx="1290" cy="620" r="1.8" opacity=".65"/>
+      <circle cx="1132" cy="612" r="1" opacity=".55"/><circle cx="964" cy="622" r="1.5" opacity=".6"/>
+      <circle cx="820" cy="606" r="2.1" opacity=".7"/>
+    </g>
+  </svg>
+  <div class="wrap">
+    <div>
+      <span class="kicker">Astrophotography tool · open source · MIT</span>
+      <h1>Celestial Vision</h1>
+      <p class="lead">Celestial Vision tells astrophotographers what is in their night-sky photos: it asks public astronomy databases which stars, galaxies, comets, asteroids and satellites were in that patch of sky at that moment, then has Gemini write the report from their answers.</p>
+      <div class="facts">
+        <div class="fact"><span>Plate solving</span><b>Astrometry.net</b></div>
+        <div class="fact"><span>Comets and asteroids</span><b>COBS, JPL Horizons, NASA NeoWs</b></div>
+        <div class="fact"><span>Satellites</span><b>CelesTrak, IAU SatChecker, Project Pluto</b></div>
+        <div class="fact"><span>Writing</span><b class="mono">gemini-3-flash-preview</b></div>
+      </div>
+    </div>
+    <figure class="plate">
+      <div class="frame">
+        <i class="reg tl"></i><i class="reg tr"></i><i class="reg bl"></i><i class="reg br"></i>
+        <div class="tagrow"><span>03 · Processing view</span><span>Log: comet survey</span></div>
+        <img src="03-processing.jpg" width="1440" height="900" alt="Celestial Vision processing view: the uploaded galaxy image on the left with an Analyzing label, and the live reasoning log on the right listing comets from COBS Planner and positions from JPL Horizons">
+      </div>
+      <figcaption>The processing view during a local run with no Gemini or Astrometry.net key. COBS Planner has listed the comets visible on the observation date, and JPL Horizons is returning each comet's position. Test image: Hubble view of M51 from the NASA Image and Video Library.</figcaption>
+    </figure>
+  </div>
+</header>
+
+<main>
+<section id="flow">
+  <div class="wrap">
+    <div class="intro">
+      <span class="kicker">Requests · vite.config.ts</span>
+      <h2>Most database calls leave the browser through forwarders on the Vite dev server</h2>
+      <p>Most astronomy services send no CORS headers, so <code>vite.config.ts</code> registers a forwarder for each one under <code>/proxy/</code> on 127.0.0.1:4200. The browser calls Gemini, NASA NeoWs and Nominatim directly. When a forwarder request fails, <code>satellites.ts</code> and <code>pluto.ts</code> retry through the public corsproxy.io relay.</p>
+    </div>
+    <figure class="diagram">
+      <div class="scroll">
+        <svg class="d" viewBox="0 0 1240 950" role="img" aria-label="Browser modules on the left call external services on the right. gemini.ts, nasa.ts and App.tsx call the Gemini API, NASA NeoWs and Nominatim directly. Astrometry.net, COBS, JPL Horizons, IAU SatChecker, CelesTrak and Project Pluto are reached through forwarders on the Vite dev server, and the APPLAUSE plate archive through dev-server middleware that adds the token. When a forwarder request fails, satellites.ts and pluto.ts retry through corsproxy.io.">
+          <defs>
+            <marker id="f1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+            <marker id="f1m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ahm"/></marker>
+          </defs>
+          <text class="k" x="40" y="28">BROWSER · SERVICES/*.TS AND APP.TSX</text>
+          <text class="k" x="860" y="28">EXTERNAL SERVICE</text>
+
+          <!-- direct calls -->
+          <rect class="box" x="40" y="48" width="220" height="64" rx="3"/>
+          <text class="k" x="54" y="66">SERVICES/GEMINI.TS</text><text class="t" x="54" y="86">Gemini calls</text><text class="m" x="54" y="103">the six model requests</text>
+          <rect class="gem" x="860" y="48" width="240" height="64" rx="3"/>
+          <text class="k" x="874" y="66">GOOGLE · @GOOGLE/GENAI</text><text class="t" x="874" y="86">Gemini API</text><text class="m" x="874" y="103">gemini-3-flash-preview</text>
+          <line class="edge" x1="260" y1="80" x2="856" y2="80" marker-end="url(#f1)"/>
+          <text class="lab" x="560" y="70" text-anchor="middle">generateContent: images, FactSheet text, chat turns</text>
+
+          <rect class="box" x="40" y="124" width="220" height="64" rx="3"/>
+          <text class="k" x="54" y="142">SERVICES/NASA.TS</text><text class="t" x="54" y="162">Near-Earth objects</text><text class="m" x="54" y="179">feed for the date + 2 days</text>
+          <rect class="box" x="860" y="124" width="240" height="64" rx="3"/>
+          <text class="k" x="874" y="142">API.NASA.GOV</text><text class="t" x="874" y="162">NASA NeoWs</text><text class="m" x="874" y="179">your key, or DEMO_KEY</text>
+          <line class="edge" x1="260" y1="156" x2="856" y2="156" marker-end="url(#f1)"/>
+          <text class="lab" x="560" y="146" text-anchor="middle">GET /neo/rest/v1/feed with api_key</text>
+
+          <rect class="box" x="40" y="200" width="220" height="64" rx="3"/>
+          <text class="k" x="54" y="218">APP.TSX</text><text class="t" x="54" y="238">Site geocoder</text><text class="m" x="54" y="255">watermark location text</text>
+          <rect class="box" x="860" y="200" width="240" height="64" rx="3"/>
+          <text class="k" x="874" y="218">NOMINATIM.OPENSTREETMAP.ORG</text><text class="t" x="874" y="238">Nominatim</text><text class="m" x="874" y="255">no key needed</text>
+          <line class="edge" x1="260" y1="232" x2="856" y2="232" marker-end="url(#f1)"/>
+          <text class="lab" x="560" y="222" text-anchor="middle">GET /search?q=location</text>
+
+          <!-- dev server -->
+          <rect class="zone" x="420" y="286" width="240" height="588" rx="6"/>
+          <text class="k" x="436" y="308">VITE DEV SERVER</text>
+          <text class="k" x="436" y="324">127.0.0.1:4200</text>
+
+          <rect class="box" x="40" y="338" width="220" height="64" rx="3"/>
+          <text class="k" x="54" y="356">SERVICES/ASTROMETRY.TS</text><text class="t" x="54" y="376">Plate solve</text><text class="m" x="54" y="393">log in, upload, poll the job</text>
+          <rect class="pill" x="436" y="352" width="208" height="36" rx="18"/><text class="route" x="540" y="374" text-anchor="middle">/proxy/astrometry</text>
+          <rect class="box" x="860" y="338" width="240" height="64" rx="3"/>
+          <text class="k" x="874" y="356">NOVA.ASTROMETRY.NET</text><text class="t" x="874" y="376">Astrometry.net</text><text class="m" x="874" y="393">field center, scale, objects</text>
+          <line class="edge" x1="260" y1="370" x2="432" y2="370" marker-end="url(#f1)"/>
+          <text class="lab" x="340" y="348" text-anchor="middle">image, downscaled</text><text class="lab" x="340" y="360" text-anchor="middle">to 1800 px</text>
+          <line class="edge" x1="644" y1="370" x2="856" y2="370" marker-end="url(#f1)"/>
+          <text class="lab" x="760" y="348" text-anchor="middle">/api/login, /api/upload,</text><text class="lab" x="760" y="360" text-anchor="middle">/api/jobs/{id}/...</text>
+
+          <rect class="box" x="40" y="414" width="220" height="64" rx="3"/>
+          <text class="k" x="54" y="432">SERVICES/COBS.TS</text><text class="t" x="54" y="452">Comet lists</text><text class="m" x="54" y="469">planner, orbits, observations</text>
+          <rect class="pill" x="436" y="428" width="208" height="36" rx="18"/><text class="route" x="540" y="450" text-anchor="middle">/proxy/cobs</text>
+          <rect class="box" x="860" y="414" width="240" height="64" rx="3"/>
+          <text class="k" x="874" y="432">COBS.SI</text><text class="t" x="874" y="452">COBS</text><text class="m" x="874" y="469">visible comets, magnitudes</text>
+          <line class="edge" x1="260" y1="446" x2="432" y2="446" marker-end="url(#f1)"/>
+          <text class="lab" x="340" y="424" text-anchor="middle">date, latitude,</text><text class="lab" x="340" y="436" text-anchor="middle">longitude</text>
+          <line class="edge" x1="644" y1="446" x2="856" y2="446" marker-end="url(#f1)"/>
+          <text class="lab" x="760" y="424" text-anchor="middle">/api/planner.api,</text><text class="lab" x="760" y="436" text-anchor="middle">comet.api, obs_list.api</text>
+
+          <rect class="box" x="40" y="490" width="220" height="64" rx="3"/>
+          <text class="k" x="54" y="508">HORIZONS.TS · NASA.TS</text><text class="t" x="54" y="528">Ephemerides</text><text class="m" x="54" y="545">comets, asteroids, planets</text>
+          <rect class="pill" x="436" y="504" width="208" height="36" rx="18"/><text class="route" x="540" y="526" text-anchor="middle">/proxy/horizons</text>
+          <rect class="box" x="860" y="490" width="240" height="64" rx="3"/>
+          <text class="k" x="874" y="508">SSD.JPL.NASA.GOV</text><text class="t" x="874" y="528">JPL Horizons</text><text class="m" x="874" y="545">RA, Dec, distance, magnitude</text>
+          <line class="edge" x1="260" y1="522" x2="432" y2="522" marker-end="url(#f1)"/>
+          <text class="lab" x="340" y="500" text-anchor="middle">designation,</text><text class="lab" x="340" y="512" text-anchor="middle">date, site</text>
+          <line class="edge" x1="644" y1="522" x2="856" y2="522" marker-end="url(#f1)"/>
+          <text class="lab" x="760" y="512" text-anchor="middle">/api/horizons.api</text>
+
+          <rect class="box" x="40" y="566" width="220" height="64" rx="3"/>
+          <text class="k" x="54" y="584">SERVICES/APPLAUSE.TS</text><text class="t" x="54" y="604">Historical plates</text><text class="m" x="54" y="621">plate search, previews</text>
+          <rect class="pill mw" x="436" y="580" width="208" height="36" rx="18"/><text class="route" x="540" y="602" text-anchor="middle">/api/applause/*</text>
+          <rect class="box" x="860" y="566" width="240" height="64" rx="3"/>
+          <text class="k" x="874" y="584">PLATE-ARCHIVE.ORG</text><text class="t" x="874" y="604">APPLAUSE DR4</text><text class="m" x="874" y="621">digitized glass plates</text>
+          <line class="edge" x1="260" y1="598" x2="432" y2="598" marker-end="url(#f1)"/>
+          <text class="lab" x="340" y="576" text-anchor="middle">field RA, Dec,</text><text class="lab" x="340" y="588" text-anchor="middle">search radius</text>
+          <line class="edge" x1="644" y1="598" x2="856" y2="598" marker-end="url(#f1)"/>
+          <text class="lab" x="760" y="576" text-anchor="middle">TAP sync query with</text><text class="lab" x="760" y="588" text-anchor="middle">Authorization token</text>
+
+          <rect class="box" x="40" y="642" width="220" height="64" rx="3"/>
+          <text class="k" x="54" y="660">SERVICES/SATCHECKER.TS</text><text class="t" x="54" y="680">Satellite check</text><text class="m" x="54" y="697">in the field at that time?</text>
+          <rect class="pill" x="436" y="656" width="208" height="36" rx="18"/><text class="route" x="540" y="678" text-anchor="middle">/proxy/satchecker</text>
+          <rect class="box" x="860" y="642" width="240" height="64" rx="3"/>
+          <text class="k" x="874" y="660">SATCHECKER.CPS.IAU.ORG</text><text class="t" x="874" y="680">IAU SatChecker</text><text class="m" x="874" y="697">positions per NORAD number</text>
+          <line class="edge" x1="260" y1="674" x2="432" y2="674" marker-end="url(#f1)"/>
+          <text class="lab" x="340" y="652" text-anchor="middle">NORAD number, site,</text><text class="lab" x="340" y="664" text-anchor="middle">10-second steps</text>
+          <line class="edge" x1="644" y1="674" x2="856" y2="674" marker-end="url(#f1)"/>
+          <text class="lab" x="760" y="652" text-anchor="middle">/ephemeris/</text><text class="lab" x="760" y="664" text-anchor="middle">catalog-number-jdstep/</text>
+
+          <rect class="box" x="40" y="718" width="220" height="64" rx="3"/>
+          <text class="k" x="54" y="736">SERVICES/SATELLITES.TS</text><text class="t" x="54" y="756">TLE download</text><text class="m" x="54" y="773">cached two hours, then SGP4</text>
+          <rect class="pill" x="436" y="732" width="208" height="36" rx="18"/><text class="route" x="540" y="754" text-anchor="middle">/proxy/celestrak</text>
+          <rect class="box" x="860" y="718" width="240" height="64" rx="3"/>
+          <text class="k" x="874" y="736">CELESTRAK.ORG</text><text class="t" x="874" y="756">CelesTrak</text><text class="m" x="874" y="773">current orbital elements</text>
+          <line class="edge" x1="260" y1="750" x2="432" y2="750" marker-end="url(#f1)"/>
+          <text class="lab" x="340" y="728" text-anchor="middle">active, DEB, R/B</text><text class="lab" x="340" y="740" text-anchor="middle">element sets</text>
+          <line class="edge" x1="644" y1="750" x2="856" y2="750" marker-end="url(#f1)"/>
+          <text class="lab" x="760" y="740" text-anchor="middle">/NORAD/elements/gp.php</text>
+
+          <rect class="box" x="40" y="794" width="220" height="64" rx="3"/>
+          <text class="k" x="54" y="812">SERVICES/PLUTO.TS</text><text class="t" x="54" y="832">Archived TLE check</text><text class="m" x="54" y="849">objects within 5° of center</text>
+          <rect class="pill" x="436" y="808" width="208" height="36" rx="18"/><text class="route" x="540" y="830" text-anchor="middle">/proxy/pluto</text>
+          <rect class="box" x="860" y="794" width="240" height="64" rx="3"/>
+          <text class="k" x="874" y="812">PROJECTPLUTO.COM</text><text class="t" x="874" y="832">Project Pluto</text><text class="m" x="874" y="849">TLEs near the photo date</text>
+          <line class="edge" x1="260" y1="826" x2="432" y2="826" marker-end="url(#f1)"/>
+          <text class="lab" x="340" y="804" text-anchor="middle">time, site,</text><text class="lab" x="340" y="816" text-anchor="middle">field center</text>
+          <line class="edge" x1="644" y1="826" x2="856" y2="826" marker-end="url(#f1)"/>
+          <text class="lab" x="760" y="816" text-anchor="middle">/cgi-bin/sat_id/sat_id3</text>
+
+          <!-- corsproxy fallback -->
+          <polyline class="fall" points="40,750 18,750 18,906 676,906" marker-end="url(#f1m)"/>
+          <line class="fall" x1="150" y1="858" x2="150" y2="906"/>
+          <circle class="jn" cx="150" cy="906" r="3.5"/>
+          <text class="lab" x="420" y="895" text-anchor="middle">retry when the forwarder request fails</text>
+          <rect class="soft" x="680" y="878" width="180" height="56" rx="3"/>
+          <text class="k" x="694" y="898">CORSPROXY.IO</text><text class="t" x="694" y="920">Public CORS relay</text>
+          <polyline class="fall" points="860,906 1160,906 1160,750 1104,750" marker-end="url(#f1m)"/>
+          <line class="fall" x1="1160" y1="826" x2="1104" y2="826" marker-end="url(#f1m)"/>
+          <circle class="jn" cx="1160" cy="826" r="3.5"/>
+          <text class="lab" x="1010" y="896" text-anchor="middle">relays the same URL</text>
+        </svg>
+      </div>
+      <figcaption>The red outline marks the only model API. The dashed outline is the dev server: its forwarders work under <code>npm run dev</code> and <code>npm run preview</code>, and the APPLAUSE middleware (blue) runs only under <code>npm run dev</code>, where <code>server/applauseApi.ts</code> reads <code>APPLAUSE_TOKEN</code> and sends it as a header. A static copy of <code>dist/</code> on a plain web host has neither.</figcaption>
+    </figure>
+    <div class="notes">
+      <div class="note"><b>Astrometry.net publishes your photo</b><p><code>astrometry.ts</code> uploads the image with <code>publicly_visible</code> set to <code>y</code>, so every solved image appears on nova.astrometry.net. It downscales the file to 1,800 px on the long side first.</p></div>
+      <div class="note"><b>Three keys travel in the bundle</b><p>The <code>define</code> block in <code>vite.config.ts</code> writes the Gemini, Astrometry.net and NASA keys into the browser code. The README asks you to keep any build on your own machine for that reason.</p></div>
+      <div class="note"><b>CelesTrak is asked every two hours at most</b><p><code>satellites.ts</code> keeps the combined TLE text in <code>localStorage</code> for two hours. A comment in the code notes that CelesTrak answers 403 to repeat requests inside that window.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="pipeline">
+  <div class="wrap">
+    <div class="intro">
+      <span class="kicker">Pipeline · processImage() in App.tsx</span>
+      <h2>The plate solution decides which checks can run</h2>
+      <p><code>processImage()</code> runs the same order for every upload. Astrometry.net's plate solution feeds three later steps: the comet survey, the satellite check and the asteroid positions all test objects against the field center and radius it returns, and each step skips that test when the solve fails.</p>
+    </div>
+    <figure class="diagram">
+      <div class="scroll">
+        <svg class="d" viewBox="0 0 1240 600" role="img" aria-label="EXIF read, the Gemini watermark pre-scan and the Nominatim geocode run first. A parallel stage then runs the plate solve, Gemini streak detection, the NeoWs feed and the named-target lookup together. The plate solution feeds the comet survey, satellite check and asteroid positions, which run in order before the FactSheet is built. The Gemini summary call writes from the FactSheet, code checks its reply, the resolver takes a second pass and the dashboard shows the result.">
+          <defs>
+            <marker id="p2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+            <marker id="p2c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ahc"/></marker>
+          </defs>
+
+          <!-- intake -->
+          <rect class="box" x="50" y="40" width="240" height="64" rx="3"/>
+          <text class="k" x="64" y="58">APP.TSX · EXTRACTEXIF</text><text class="t" x="64" y="78">EXIF read</text><text class="m" x="64" y="95">date, GPS, camera; your date wins</text>
+          <rect class="gem" x="410" y="40" width="240" height="64" rx="3"/>
+          <text class="k" x="424" y="58">GEMINI.TS · PRESCANGIMAGE</text><text class="t" x="424" y="78">Watermark pre-scan</text><text class="m" x="424" y="95">date, site, target, exposure</text>
+          <rect class="box" x="770" y="40" width="240" height="64" rx="3"/>
+          <text class="k" x="784" y="58">APP.TSX · NOMINATIM</text><text class="t" x="784" y="78">Geocode the site</text><text class="m" x="784" y="95">only when EXIF has no GPS</text>
+          <line class="edge" x1="290" y1="72" x2="406" y2="72" marker-end="url(#p2)"/><text class="lab" x="350" y="62" text-anchor="middle">then</text>
+          <line class="edge" x1="650" y1="72" x2="766" y2="72" marker-end="url(#p2)"/><text class="lab" x="710" y="62" text-anchor="middle">site name</text>
+          <line class="edge" x1="920" y1="104" x2="920" y2="148" marker-end="url(#p2)"/><text class="lab" x="930" y="131">image, date, lat, lon, target</text>
+
+          <!-- parallel stage -->
+          <rect class="zone" x="32" y="150" width="1176" height="126" rx="6"/>
+          <text class="k" x="50" y="172">PARALLEL STAGE · PROMISE.ALL</text>
+          <rect class="hot" x="50" y="190" width="240" height="64" rx="3"/>
+          <text class="k" x="64" y="208">SERVICES/ASTROMETRY.TS</text><text class="t" x="64" y="228">Plate solve</text><text class="m" x="64" y="245">center, radius, scale, rotation</text>
+          <rect class="gem" x="350" y="190" width="240" height="64" rx="3"/>
+          <text class="k" x="364" y="208">GEMINI.TS · DETECTSTREAKS</text><text class="t" x="364" y="228">Streak detection</text><text class="m" x="364" y="245">start and end pixel per trail</text>
+          <rect class="box" x="650" y="190" width="240" height="64" rx="3"/>
+          <text class="k" x="664" y="208">SERVICES/NASA.TS</text><text class="t" x="664" y="228">NeoWs feed</text><text class="m" x="664" y="245">objects within 0.1 AU</text>
+          <rect class="box" x="950" y="190" width="240" height="64" rx="3"/>
+          <text class="k" x="964" y="208">COBS.TS · HORIZONS.TS</text><text class="t" x="964" y="228">Named target</text><text class="m" x="964" y="245">runs when a target name is known</text>
+
+          <!-- verticals into the sequential stage -->
+          <line class="edge" x1="480" y1="254" x2="480" y2="352" marker-end="url(#p2)"/><text class="lab" x="490" y="300">streaks kept: in frame, ≥ 30 px</text>
+          <line class="edge" x1="760" y1="254" x2="760" y2="352" marker-end="url(#p2)"/><text class="lab" x="770" y="300">objects ≤ 0.1 AU</text>
+          <line class="edge" x1="1100" y1="254" x2="1100" y2="352" marker-end="url(#p2)"/><text class="lab" x="1110" y="300">target ephemeris</text>
+
+          <!-- sequential stage -->
+          <rect class="zone" x="32" y="316" width="1176" height="120" rx="6"/>
+          <text class="k" x="50" y="338">THEN, IN ORDER</text>
+          <rect class="box" x="50" y="356" width="230" height="64" rx="3"/>
+          <text class="k" x="64" y="374">APP.TSX · COBS + HORIZONS</text><text class="t" x="64" y="394">Comet survey</text><text class="m" x="64" y="411">tests the eight brightest</text>
+          <rect class="box" x="340" y="356" width="230" height="64" rx="3"/>
+          <text class="k" x="354" y="374">SATELLITES.TS · PLUTO.TS</text><text class="t" x="354" y="394">Satellite check</text><text class="m" x="354" y="411">SGP4, SatChecker, Project Pluto</text>
+          <rect class="box" x="630" y="356" width="230" height="64" rx="3"/>
+          <text class="k" x="644" y="374">NASA.TS · HORIZONS</text><text class="t" x="644" y="394">Asteroid positions</text><text class="m" x="644" y="411">projected onto the plate</text>
+          <rect class="box" x="950" y="356" width="240" height="64" rx="3"/>
+          <text class="k" x="964" y="374">TYPES.TS · APP.TSX</text><text class="t" x="964" y="394">FactSheet</text><text class="m" x="964" y="411">magnitude tagged with its source</text>
+          <line class="edge" x1="280" y1="388" x2="336" y2="388" marker-end="url(#p2)"/><text class="lab" x="308" y="378" text-anchor="middle">then</text>
+          <line class="edge" x1="570" y1="388" x2="626" y2="388" marker-end="url(#p2)"/><text class="lab" x="598" y="378" text-anchor="middle">then</text>
+          <line class="edge" x1="860" y1="388" x2="946" y2="388" marker-end="url(#p2)"/><text class="lab" x="903" y="378" text-anchor="middle">results</text>
+
+          <!-- plate solution bus -->
+          <polyline class="bus" points="50,222 16,222 16,476 745,476"/>
+          <line class="bus" x1="165" y1="476" x2="165" y2="425" marker-end="url(#p2c)"/>
+          <line class="bus" x1="455" y1="476" x2="455" y2="425" marker-end="url(#p2c)"/>
+          <line class="bus" x1="745" y1="476" x2="745" y2="425" marker-end="url(#p2c)"/>
+          <circle class="jc" cx="165" cy="476" r="4"/><circle class="jc" cx="455" cy="476" r="4"/>
+          <text class="lab ct" x="310" y="462" text-anchor="middle">plate solution</text>
+          <text class="lab ct" x="600" y="462" text-anchor="middle">center, radius, scale, rotation</text>
+
+          <!-- write and check -->
+          <line class="edge" x1="1070" y1="420" x2="1070" y2="512" marker-end="url(#p2)"/><text class="lab" x="1080" y="472">FactSheet text</text>
+          <rect class="gem" x="950" y="516" width="220" height="64" rx="3"/>
+          <text class="k" x="964" y="534">GEMINI.TS</text><text class="t" x="964" y="554">Summary call</text><text class="m" x="964" y="571">writes from the FactSheet</text>
+          <rect class="hot" x="650" y="516" width="220" height="64" rx="3"/>
+          <text class="k" x="664" y="534">GEMINI.TS · APP.TSX</text><text class="t" x="664" y="554">Output checks</text><text class="m" x="664" y="571">positions, caps, added entries</text>
+          <rect class="box" x="350" y="516" width="220" height="64" rx="3"/>
+          <text class="k" x="364" y="534">SERVICES/RESOLVER.TS</text><text class="t" x="364" y="554">Second pass</text><text class="m" x="364" y="571">unknowns and weak matches</text>
+          <rect class="box" x="50" y="516" width="220" height="64" rx="3"/>
+          <text class="k" x="64" y="534">RESULTSDASHBOARD.TSX</text><text class="t" x="64" y="554">Results dashboard</text><text class="m" x="64" y="571">registry, comparator, chat</text>
+          <line class="edge" x1="950" y1="548" x2="874" y2="548" marker-end="url(#p2)"/><text class="lab" x="910" y="538" text-anchor="middle">JSON</text>
+          <line class="edge" x1="650" y1="548" x2="574" y2="548" marker-end="url(#p2)"/><text class="lab" x="610" y="538" text-anchor="middle">entries</text>
+          <line class="edge" x1="350" y1="548" x2="274" y2="548" marker-end="url(#p2)"/><text class="lab" x="310" y="538" text-anchor="middle">result</text>
+        </svg>
+      </div>
+      <figcaption>Red outlines are Gemini calls and the blue line carries the plate solution; every other box is a database query or plain TypeScript. Without a plate solution, the three survey steps skip their in-field tests, and the summary call receives the photo along with the FactSheet.</figcaption>
+    </figure>
+    <div class="notes">
+      <div class="note"><b>Each magnitude names its source</b><p><code>App.tsx</code> prefers a COBS observation, then a JPL prediction. When the COBS Planner and JPL values disagree by more than three magnitudes, it computes an estimate from the absolute magnitude and the Horizons distance and tags it as computed.</p></div>
+      <div class="note"><b>Stacked images change the satellite math</b><p>For a file such as <code>Stacked_52_..._20.0s</code>, the satellite check uses the sub-exposure length for crossing tests, because a trail can appear in one sub-frame only.</p></div>
+      <div class="note"><b>Old photos widen the satellite search</b><p>When the downloaded CelesTrak elements are more than seven days from the photo date, <code>satellites.ts</code> marks SGP4 unreliable and widens its scan, and the app falls back to SatChecker and Project Pluto.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="checks">
+  <div class="wrap">
+    <div class="intro">
+      <span class="kicker">Checks · services/gemini.ts and App.tsx</span>
+      <h2>What Gemini receives and what the code changes in its reply</h2>
+      <p>The summary call has the most room to invent things, so the code limits what goes in and rewrites what comes back. Its system prompt tells the model to summarize the identifications it is given, never to identify objects from the image, and to quote FactSheet numbers exactly or write "unknown".</p>
+    </div>
+    <figure class="diagram">
+      <div class="scroll">
+        <svg class="d" viewBox="0 0 1240 480" role="img" aria-label="Panel 1: the prompt holds FactSheet values, Astrometry.net names and detected streaks; satellites go in only when a streak was found, and the photo only when plate solving failed. Panel 2: the model's pixel guess for an object is replaced by a position projected from the object's RA and Dec onto the plate solution. Panel 3: a confidence scale from 1.0 down to 0.25 with the values the code assigns or caps, and a shaded band below 0.6 that goes to the resolver.">
+          <defs>
+            <marker id="c3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+            <marker id="c3c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ahc"/></marker>
+            <marker id="c3p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ahp"/></marker>
+            <clipPath id="c3clip"><rect x="440" y="44" width="400" height="270"/></clipPath>
+          </defs>
+
+          <!-- panel 1: prompt -->
+          <text class="k" x="20" y="28">1 · WHAT THE SUMMARY CALL SEES</text>
+          <rect class="box" x="20" y="44" width="360" height="300" rx="3"/>
+          <text class="k" x="36" y="66">PROMPT BUILT IN GEMINI.TS</text>
+          <line class="sep" x1="20" y1="80" x2="380" y2="80"/>
+          <text class="rt" x="36" y="102">FactSheet values</text><text class="m" x="36" y="121">quote them exactly or write unknown</text>
+          <line class="sep" x1="20" y1="132" x2="380" y2="132"/>
+          <text class="rt" x="36" y="154">Detected streaks</text><text class="m" x="36" y="173">start and end pixel for each trail</text>
+          <rect class="gate" x="26" y="188" width="348" height="44" rx="2"/>
+          <text class="rt" x="36" y="206">Astrometry.net names</text><text class="k pt" x="362" y="206" text-anchor="end">IF THE SOLVE WORKED</text>
+          <text class="m" x="36" y="225">catalog objects in the field</text>
+          <rect class="gate" x="26" y="240" width="348" height="44" rx="2"/>
+          <text class="rt" x="36" y="258">Satellites</text><text class="k pt" x="362" y="258" text-anchor="end">IF A STREAK WAS FOUND</text>
+          <text class="m" x="36" y="277">minus any SatChecker disproved</text>
+          <rect class="gate" x="26" y="292" width="348" height="44" rx="2"/>
+          <text class="rt" x="36" y="310">The photo itself</text><text class="k pt" x="362" y="310" text-anchor="end">IF THE SOLVE FAILED</text>
+          <text class="m" x="36" y="329">every confidence then capped at 0.6</text>
+          <line class="edge" x1="200" y1="344" x2="200" y2="390" marker-end="url(#c3)"/>
+          <text class="lab" x="210" y="372">system prompt and data</text>
+          <rect class="gem" x="20" y="394" width="360" height="70" rx="3"/>
+          <text class="k" x="36" y="414">GEMINI-3-FLASH-PREVIEW</text>
+          <text class="t" x="36" y="436">Summary call</text>
+          <text class="m" x="36" y="454">JSON schema and googleSearch; retried without search</text>
+
+          <!-- panel 2: re-projection -->
+          <text class="k" x="440" y="28">2 · WHERE EACH OBJECT LANDS</text>
+          <rect class="plate" x="440" y="44" width="400" height="270" rx="2"/>
+          <g clip-path="url(#c3clip)">
+            <g transform="rotate(-14 640 179)">
+              <line class="grat" x1="480" y1="-20" x2="486" y2="380"/>
+              <line class="grat" x1="560" y1="-20" x2="563" y2="380"/>
+              <line class="grat" x1="640" y1="-20" x2="640" y2="380"/>
+              <line class="grat" x1="720" y1="-20" x2="717" y2="380"/>
+              <line class="grat" x1="800" y1="-20" x2="794" y2="380"/>
+              <line class="grat" x1="380" y1="84" x2="900" y2="84"/>
+              <line class="grat" x1="380" y1="154" x2="900" y2="154"/>
+              <line class="grat" x1="380" y1="224" x2="900" y2="224"/>
+              <line class="grat" x1="380" y1="294" x2="900" y2="294"/>
+            </g>
+          </g>
+          <path class="reg" d="M432,58 v-22 h22"/><path class="reg" d="M826,36 h22 v22"/>
+          <path class="reg" d="M432,300 v22 h22"/><path class="reg" d="M826,322 h22 v-22"/>
+          <g class="star">
+            <circle cx="474" cy="64" r="1.6"/><circle cx="604" cy="70" r="2.1"/><circle cx="690" cy="96" r="1.4"/>
+            <circle cx="774" cy="68" r="2.4"/><circle cx="818" cy="126" r="1.3"/><circle cx="560" cy="140" r="1.5"/>
+            <circle cx="476" cy="190" r="2"/><circle cx="806" cy="190" r="1.7"/><circle cx="596" cy="214" r="1.2"/>
+            <circle cx="820" cy="296" r="1.5"/><circle cx="656" cy="300" r="1.8"/>
+          </g>
+          <line class="edge" x1="628" y1="179" x2="652" y2="179"/><line class="edge" x1="640" y1="167" x2="640" y2="191"/>
+          <text class="lab halo" x="630" y="160" text-anchor="end">field center</text>
+          <line class="bus" x1="646" y1="183" x2="729" y2="229" marker-end="url(#c3c)"/>
+          <text class="lab ct halo" x="704" y="194">ξ, η</text>
+          <circle class="ring" cx="742" cy="236" r="11"/><circle class="dot" cx="742" cy="236" r="4.5"/>
+          <text class="lab ct halo" x="742" y="268" text-anchor="middle">projected from RA, Dec</text>
+          <circle class="guess" cx="520" cy="262" r="9"/>
+          <text class="lab pt halo" x="520" y="295" text-anchor="middle">model's pixel guess</text>
+          <line class="over" x1="531" y1="261" x2="727" y2="238" marker-end="url(#c3p)"/>
+          <text class="lab pt halo" x="604" y="236" text-anchor="middle">overwritten</text>
+          <text class="lab" x="440" y="342">RA, Dec → tangent plane (ξ, η) → ÷ pixel scale</text>
+          <text class="lab" x="440" y="360">→ rotate by orientation → shift to image center</text>
+          <text class="m" x="440" y="392">Each moved entry gets the evidence line</text>
+          <text class="m" x="440" y="410">"Position verified via WCS Projection", plus 0.1 confidence.</text>
+
+          <!-- panel 3: confidence -->
+          <text class="k" x="900" y="28">3 · CONFIDENCE SET OR CAPPED BY CODE</text>
+          <rect class="band" x="961" y="252" width="9" height="168"/>
+          <line class="axis" x1="960" y1="60" x2="960" y2="420"/>
+          <line class="tick" x1="954" y1="60" x2="966" y2="60"/><text class="lab" x="946" y="64" text-anchor="end">1.0</text>
+          <line class="tick" x1="954" y1="84" x2="966" y2="84"/><text class="lab" x="946" y="88" text-anchor="end">0.95</text><text x="984" y="88">Project Pluto match for a streak</text>
+          <line class="tick" x1="954" y1="108" x2="966" y2="108"/><text class="lab" x="946" y="112" text-anchor="end">0.90</text><text x="984" y="112">SatChecker match + streak geometry</text><text x="984" y="128">comet placed in field by Horizons</text>
+          <line class="tick" x1="954" y1="156" x2="966" y2="156"/><text class="lab" x="946" y="160" text-anchor="end">0.80</text><text x="984" y="160">SatChecker places it in the field</text>
+          <line class="ptick" x1="952" y1="252" x2="968" y2="252"/><text class="lab pt" x="946" y="256" text-anchor="end">0.60</text><text class="pt" x="984" y="256">cap: plate solving failed</text>
+          <line class="tick" x1="954" y1="276" x2="966" y2="276"/><text class="lab" x="946" y="280" text-anchor="end">0.55</text><text x="984" y="280">SGP4 estimate + streak geometry</text>
+          <line class="ptick" x1="952" y1="300" x2="968" y2="300"/><text class="lab pt" x="946" y="304" text-anchor="end">0.50</text><text class="pt" x="984" y="304">cap: streak with no catalog match</text>
+          <line class="tick" x1="954" y1="372" x2="966" y2="372"/><text class="lab" x="946" y="376" text-anchor="end">0.35</text><text x="984" y="376">SGP4 estimate only</text>
+          <line class="tick" x1="954" y1="396" x2="966" y2="396"/><text class="lab" x="946" y="400" text-anchor="end">0.30</text><text x="984" y="400">streak with no satellite candidate</text>
+          <text class="lab pt" x="960" y="446">below 0.6: resolver.ts re-checks it</text>
+        </svg>
+      </div>
+      <figcaption>Panel 1: the rows outlined in red enter the prompt only under the condition on their tag. Panel 2: for every entry with coordinates, <code>gemini.ts</code> drops the pixel position the model returned and computes one with a gnomonic projection of the entry's RA and Dec onto the plate solution. Panel 3: the confidence values the code assigns or caps; entries on the shaded part of the scale go to <code>resolver.ts</code>. <code>gemini.ts</code> also removes any reference image URL that does not answer a HEAD request with an image content type within three seconds.</figcaption>
+    </figure>
+    <div class="notes">
+      <div class="note"><b>Streaks and comets are written by code</b><p><code>App.tsx</code> adds one entry per detected streak and pairs it with the best-ranked satellite: a Project Pluto match first, then a SatChecker match, then an SGP4 estimate. Comets that Horizons places inside the solved field are added the same way unless Gemini already listed them.</p></div>
+      <div class="note"><b>Weak entries get a second pass</b><p><code>resolver.ts</code> tries a streak against its meteor shower table and the ISS before re-matching satellites at a wider tolerance. It then compares any entry that has coordinates with the planets, five bright asteroids and the three brightest comets of the date, and an entry that stays unmatched lists every database it tried.</p></div>
+      <div class="note"><b>The caption gets its own pass</b><p><code>generateInstagramCaption()</code> finds AU distances and magnitudes in the caption and rewrites any that disagree with the FactSheet: a distance off by more than half and by more than 0.5 AU, or a magnitude off by more than two. It then trims the text to Instagram's 2,200-character limit.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="run">
+  <div class="wrap">
+    <div class="intro">
+      <span class="kicker">Run it</span>
+      <h2>Run it on your own machine with your own keys</h2>
+      <p>You need Node.js 20 and npm. The dev server binds to 127.0.0.1 on port 4200 with <code>strictPort</code>, so it exits when another process holds that port. Without keys, the upload screen and the review step work and the comet survey runs; the run then stops at the Gemini summary step with "Analysis engine failed."</p>
+    </div>
+    <div class="runs">
+      <div>
+<pre>git clone https://github.com/NXTLupo/Celestial-Vision.git
+cd Celestial-Vision
+npm install
+cp .env.example .env.local   <span class="c"># add the keys you have</span>
+npm run dev                  <span class="c"># http://127.0.0.1:4200</span></pre>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Variable</th><th>What it unlocks</th></tr></thead>
+            <tbody>
+              <tr><td class="var">GEMINI_API_KEY</td><td>Every Gemini call. A finished report needs it.</td></tr>
+              <tr><td class="var">ASTROMETRY_API_KEY</td><td>Plate solving. Without it the app skips the satellite check, the in-field comet and asteroid tests, and the APPLAUSE plates.</td></tr>
+              <tr><td class="var">APPLAUSE_TOKEN</td><td>Optional. The dev-server middleware sends it with plate searches.</td></tr>
+              <tr><td class="var">NASA_API_KEY</td><td>Optional. NeoWs falls back to NASA's DEMO_KEY, which has lower rate limits.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <figure class="shot">
+        <div class="frame">
+          <i class="reg tl"></i><i class="reg tr"></i><i class="reg bl"></i><i class="reg br"></i>
+          <img src="02-staging.jpg" width="1440" height="900" alt="The review step: a thumbnail of the staged galaxy image, an observation date field marked as taken from the file date, an optional target object field, and Cancel and Initiate Analysis buttons">
+        </div>
+        <figcaption>The review step after a drop. The date came from the file's modified date, so the form asks you to check it; the target field is optional and suggests comet names from COBS for that date.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">Celestial Vision · MIT license · Data from Astrometry.net, NASA NeoWs, JPL Horizons, COBS, CelesTrak, IAU SatChecker, Project Pluto, APPLAUSE and OpenStreetMap Nominatim</div>
+</footer>
+
+</html>
