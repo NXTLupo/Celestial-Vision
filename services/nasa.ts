@@ -14,7 +14,7 @@ const NASA_API_KEY: string = (process.env as any).NASA_API_KEY || "DEMO_KEY";
  */
 export const fetchNearEarthObjects = async (dateStr: string, onLog?: (msg: string) => void): Promise<NeoObject[]> => {
   try {
-    if (onLog) onLog(`[NASA NEO] Initializing telemetry with KeyID: ...${NASA_API_KEY.slice(-4)}`);
+    if (onLog) onLog(`[NASA NEO] Initializing telemetry with ${NASA_API_KEY === "DEMO_KEY" ? "NASA's public DEMO_KEY" : "your NASA_API_KEY"}`);
 
     // Parse date or default to today
     const dateObj = new Date(dateStr);
