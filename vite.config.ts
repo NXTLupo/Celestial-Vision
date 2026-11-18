@@ -53,7 +53,8 @@ export default defineConfig(({ mode }) => {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.APPLAUSE_TOKEN': JSON.stringify(env.APPLAUSE_TOKEN),
-        'process.env.ASTROMETRY_API_KEY': JSON.stringify(env.ASTROMETRY_API_KEY)
+        'process.env.ASTROMETRY_API_KEY': JSON.stringify(env.ASTROMETRY_API_KEY),
+        'process.env.NASA_API_KEY': JSON.stringify(env.NASA_API_KEY || '')
       },
       resolve: {
         alias: {

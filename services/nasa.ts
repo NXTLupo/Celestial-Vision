@@ -3,11 +3,12 @@ import { NeoObject, PlateSolveMetadata } from "../types";
 
 // Official NASA NeoWs (Near Earth Object Web Service) API
 const NASA_API_ROOT = "https://api.nasa.gov/neo/rest/v1/feed";
-const NASA_API_KEY = "***REMOVED***";
+// Your api.nasa.gov key from .env.local (NASA_API_KEY); NASA's public DEMO_KEY works without one, with lower rate limits.
+const NASA_API_KEY: string = (process.env as any).NASA_API_KEY || "DEMO_KEY";
 
 /**
  * Fetches Near-Earth Objects (NEOs) that are close to Earth around a specific date.
- * Uses api.nasa.gov with a paid/registered key for higher rate limits.
+ * Uses api.nasa.gov with your registered key (NASA_API_KEY) for higher rate limits, or NASA's public DEMO_KEY.
  * 
  * @param dateStr Date string in YYYY-MM-DD format
  */

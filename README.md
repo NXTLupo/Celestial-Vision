@@ -275,6 +275,7 @@ In `.env.local`:
 GEMINI_API_KEY=        # https://aistudio.google.com/app/apikey
 ASTROMETRY_API_KEY=    # https://nova.astrometry.net/api_help
 APPLAUSE_TOKEN=        # request access at https://www.plate-archive.org/
+NASA_API_KEY=          # https://api.nasa.gov/ (optional; NASA's DEMO_KEY is used when empty)
 ```
 
 `.env.local` is gitignored.
